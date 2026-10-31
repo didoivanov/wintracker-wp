@@ -206,7 +206,7 @@ final class Wintracker_Settings {
 		unset( $post_types['attachment'] );
 		?>
 		<h2 id="links"><?php esc_html_e( 'Links to your pages', 'wintracker' ); ?></h2>
-		<p><?php esc_html_e( 'Optional. Game, casino and provider names in the widgets link to your own review pages when one matches by name or slug (for example "Bizzo Casino Review" for Bizzo Casino). Matching runs in the background after saving, daily, and shortly after a page of that type is published or renamed. To fix or force a match, use the Wintracker box on the page\'s edit screen.', 'wintracker' ); ?></p>
+		<p><?php esc_html_e( 'Optional. Game, casino and provider names in the widgets link to your own review pages when one matches by name or slug (for example "Bizzo Casino Review" for Bizzo Casino). Matching runs when you save here or click "Rebuild links now", daily, and shortly after a page of that type is published or renamed. To fix or force a match, use the Wintracker box on the page\'s edit screen.', 'wintracker' ); ?></p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="wintracker_links">
 			<?php wp_nonce_field( 'wintracker_links' ); ?>
@@ -255,8 +255,11 @@ final class Wintracker_Settings {
 						} else {
 							esc_html_e( 'Not matched yet.', 'wintracker' );
 						}
-						if ( wp_next_scheduled( Wintracker_Links::CRON_SOON ) ) {
-							echo ' ' . esc_html__( 'Matching is scheduled and runs within a few minutes.', 'wintracker' );
+						$due = wp_next_scheduled( Wintracker_Links::CRON_SOON );
+						if ( $due && $due < time() - 10 * MINUTE_IN_SECONDS ) {
+							echo ' <strong>' . esc_html__( 'WordPress\'s scheduled tasks (WP-Cron) don\'t seem to run on this site, so links aren\'t updated automatically after page edits. Click "Rebuild links now" after adding pages, or ask your host for a server cron job that calls wp-cron.php.', 'wintracker' ) . '</strong>';
+						} elseif ( $due ) {
+							echo ' ' . esc_html__( 'An update is scheduled and runs within a few minutes.', 'wintracker' );
 						}
 						?>
 					</span>
@@ -276,21 +279,36 @@ final class Wintracker_Settings {
 		if ( ! array_filter( $types ) ) {
 			self::done( 'success', __( 'Links turned off.', 'wintracker' ) );
 		}
-		self::start_rebuild();
-		self::done( 'success', __( 'Saved. Matching runs in the background; reload this page in a minute to see the results.', 'wintracker' ) );
+		$summary = self::start_rebuild();
+		self::done( 'success', __( 'Saved and matched.', 'wintracker' ) . ' ' . $summary . '.' );
 	}
 
 	public static function rebuild_links() {
 		self::guard( 'wintracker_links_rebuild' );
-		self::start_rebuild();
-		self::done( 'success', __( 'Matching started in the background; reload this page in a minute to see the results.', 'wintracker' ) );
+		$summary = self::start_rebuild();
+		self::done( 'success', __( 'Links rebuilt.', 'wintracker' ) . ' ' . $summary . '.' );
 	}
 
+	/** Matches right away in this request (WP-Cron is often blocked by Cloudflare/hosts), then reports the counts. */
 	private static function start_rebuild() {
 		wp_clear_scheduled_hook( Wintracker_Links::CRON_SOON );
-		Wintracker_Links::rebuild_soon( 0 );
 		Wintracker_Links::schedule_daily();
-		spawn_cron();
+		Wintracker_Links::rebuild();
+		$report = get_option( Wintracker_Links::REPORT_OPTION, array() );
+		$parts  = array();
+		$names  = array(
+			'casino'   => __( 'casinos', 'wintracker' ),
+			'provider' => __( 'providers', 'wintracker' ),
+			'game'     => __( 'games', 'wintracker' ),
+		);
+		foreach ( (array) ( $report['kinds'] ?? array() ) as $kind => $r ) {
+			$parts[] = ! empty( $r['error'] )
+				/* translators: %s: casinos, providers or games */
+				? sprintf( __( '%s: the Wintracker list could not be loaded', 'wintracker' ), $names[ $kind ] )
+				/* translators: 1: casinos, providers or games, 2: linked count, 3: total count */
+				: sprintf( __( '%1$s: %2$s of %3$s linked', 'wintracker' ), $names[ $kind ], number_format_i18n( $r['linked'] ), number_format_i18n( $r['entities'] ) );
+		}
+		return implode( '; ', $parts );
 	}
 
 	public static function save_display() {
