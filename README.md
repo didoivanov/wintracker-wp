@@ -161,7 +161,7 @@ The plugin updates through the normal wp-admin screens, from this repository's
 
 **Shipping a new version:** raise `Version:` and `WINTRACKER_VERSION` in `wintracker.php` (they must match) and
 merge to the default branch. The [Release workflow](.github/workflows/release.yml) lints the PHP, builds
-`wintracker-wp.zip` and publishes release `vX.Y.Z`. Sites see it within 6 hours, or right away with
+`wintracker-wp.zip` and publishes release `vX.Y.Z`. Sites see it within a few hours, or right away with the **Check for updates** link under Wintracker on the Plugins screen, or
 **Dashboard → Updates → Check again**. Pushes that don't change the version publish nothing.
 
 Optional `wp-config.php` constants:
@@ -193,7 +193,7 @@ Everything else is a [transient](https://developer.wordpress.org/apis/transients
 | `wintracker_s_<hash>`         | last good response of that widget (outage snapshot)    | 7 days, rewritten on every refresh | same |
 | `wintracker_l_<hash>`         | "refresh in progress" lock                             | 30 s                        | tiny |
 | `wintracker_paused`           | API failed: pause calls                                | 1–15 min                    | tiny |
-| `wintracker_update_release`   | latest GitHub release (site transient)                 | re-checked every 6 h        | tiny |
+| `wintracker_update_release`   | latest GitHub release (site transient)                 | re-checked every 3 h        | tiny |
 
 So the database holds at most two copies per distinct widget configuration (`casino` + `sort` + `period` + …,
 not per page: ten pages with the same shortcode share one entry), and none of them is autoloaded. Snapshots of

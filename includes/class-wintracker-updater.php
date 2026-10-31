@@ -5,7 +5,7 @@
  *
  * - The plugin header's "Update URI: https://github.com/didoivanov/wintracker-wp" makes WordPress ask the
  *   update_plugins_github.com filter (WP 5.8+) instead of wordpress.org.
- * - The latest release is fetched from the GitHub API and re-checked every 6 hours ("Check again" on
+ * - The latest release is fetched from the GitHub API and re-checked every 3 hours ("Check again" on
  *   Dashboard → Updates refreshes it). Releases are created by .github/workflows/release.yml when the
  *   version in wintracker.php changes.
  * - The package is the release's wintracker-wp.zip asset (built by the workflow), else the source zipball.
@@ -24,7 +24,7 @@ final class Wintracker_Updater {
 
 	const REPO      = 'didoivanov/wintracker-wp';
 	const CACHE     = 'wintracker_update_release';
-	const CACHE_TTL = 6 * HOUR_IN_SECONDS;
+	const CACHE_TTL = 3 * HOUR_IN_SECONDS;
 
 	public static function init() {
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'check' ), 10, 3 );
@@ -33,6 +33,9 @@ final class Wintracker_Updater {
 		add_filter( 'http_request_args', array( __CLASS__, 'auth' ), 10, 2 );
 		add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'clear' ) );
+		add_filter( 'plugin_row_meta', array( __CLASS__, 'row_link' ), 10, 2 );
+		add_action( 'admin_post_wintracker_check_updates', array( __CLASS__, 'check_now' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'check_notice' ) );
 	}
 
 	private static function basename() {
@@ -195,6 +198,52 @@ final class Wintracker_Updater {
 			return (bool) WINTRACKER_AUTO_UPDATE;
 		}
 		return $update;
+	}
+
+	/** "Check for updates" under the plugin's description on the Plugins screen. */
+	public static function row_link( $meta, $plugin_file ) {
+		if ( self::basename() === $plugin_file && current_user_can( 'update_plugins' ) ) {
+			$url    = wp_nonce_url( admin_url( 'admin-post.php?action=wintracker_check_updates' ), 'wintracker_check_updates' );
+			$meta[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Check for updates', 'wintracker' ) . '</a>';
+		}
+		return $meta;
+	}
+
+	/** Asks GitHub and WordPress again right now, then goes back to the Plugins screen. */
+	public static function check_now() {
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			wp_die( esc_html__( 'You are not allowed to update plugins.', 'wintracker' ), 403 );
+		}
+		check_admin_referer( 'wintracker_check_updates' );
+		self::clear();
+		delete_site_transient( 'update_plugins' );
+		if ( ! function_exists( 'wp_update_plugins' ) ) {
+			require_once ABSPATH . WPINC . '/update.php';
+		}
+		wp_update_plugins();
+
+		$release = self::release();
+		if ( ! $release ) {
+			$message = array( 'warning', __( 'Wintracker: GitHub could not be reached. Try again in a few minutes.', 'wintracker' ) );
+		} elseif ( version_compare( $release['version'], WINTRACKER_VERSION, '>' ) ) {
+			/* translators: %s: version number */
+			$message = array( 'info', sprintf( __( 'Wintracker %s is available: use "update now" below.', 'wintracker' ), $release['version'] ) );
+		} else {
+			/* translators: %s: version number */
+			$message = array( 'success', sprintf( __( 'Wintracker is up to date (%s).', 'wintracker' ), WINTRACKER_VERSION ) );
+		}
+		set_transient( 'wintracker_update_notice_' . get_current_user_id(), $message, MINUTE_IN_SECONDS );
+		wp_safe_redirect( admin_url( 'plugins.php' ) );
+		exit;
+	}
+
+	public static function check_notice() {
+		$key    = 'wintracker_update_notice_' . get_current_user_id();
+		$notice = get_transient( $key );
+		if ( is_array( $notice ) ) {
+			delete_transient( $key );
+			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $notice[0] ), esc_html( $notice[1] ) );
+		}
 	}
 
 	public static function clear() {
