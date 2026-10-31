@@ -66,6 +66,43 @@ final class Wintracker_Data {
 		return null;
 	}
 
+	/** Stats field => the wins.php sort that finds the win behind it. */
+	const DETAIL_SORTS = array(
+		'biggest_win'    => 'amount',
+		'top_multiplier' => 'multiplier',
+		'last_win'       => 'latest',
+	);
+
+	/**
+	 * The wins behind the biggest win, top multiplier and last win of a stats card (one cached wins.php call each,
+	 * all time, limit 1), for the requested fields only.
+	 *
+	 * @param array<string, mixed> $row    the stats row (its id narrows the wins: casino, provider or game)
+	 * @param string[]             $fields the card's fields
+	 * @return array<string, array<string, mixed>> field => win
+	 */
+	public static function stat_details( $type, array $row, array $fields ) {
+		if ( ! in_array( $type, self::TYPES, true ) || empty( $row['id'] ) ) {
+			return array();
+		}
+		$details = array();
+		foreach ( array_intersect_key( self::DETAIL_SORTS, array_flip( $fields ) ) as $field => $sort ) {
+			$response = Wintracker_Client::get(
+				'wins',
+				array(
+					$type    => (string) (int) $row['id'],
+					'sort'   => $sort,
+					'period' => 'all',
+					'limit'  => 1,
+				)
+			);
+			if ( $response && ! empty( $response['data'][0] ) && is_array( $response['data'][0] ) ) {
+				$details[ $field ] = $response['data'][0];
+			}
+		}
+		return $details;
+	}
+
 	/**
 	 * The games endpoint has no id filter, so: the game's name from wins.php?game=ID (which also follows
 	 * merged games), then the row with that id from games.php?q=NAME. Both responses are cached.

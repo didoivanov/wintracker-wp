@@ -9,7 +9,7 @@ PHP functions.
 1. Install `wintracker-wp.zip` from the [latest release](https://github.com/didoivanov/wintracker-wp/releases/latest)
    (Plugins → Add New → Upload, or extract it into `wp-content/plugins/wintracker-wp/`) and activate **Wintracker**.
    From then on it updates itself from this repository (below).
-2. Paste the API key under **Settings → Wintracker** and save: the page tests the key right away. The same page has
+2. Paste the API key under **Wintracker → Settings** and save: the page tests the key right away. The same page has
    **Test connection** and **Clear cache** buttons.
 
    Alternatively, define the key in `wp-config.php`. It then overrides the settings page and stays out of the
@@ -37,6 +37,12 @@ Keys are created by the Wintracker admin (`php bin/api-key.php create "casinos.e
   comment (`<!-- Wintracker: casino_not_found: … -->`) in the page source.
 - **Stylesheet only where needed.** `assets/wintracker.css` (about 5 KB, less gzipped) loads only on pages that show a
   widget: in `<head>` for posts with a Wintracker shortcode, otherwise in the footer when the widget renders.
+
+## Shortcode builder
+
+**Wintracker → Shortcode builder** in wp-admin (for anyone who can edit posts): pick the widget, the casino and
+provider from lists loaded from the API, search games by name, set the options, see a live preview, and copy the
+shortcode or the PHP call. The same page has a reference of every shortcode and attribute.
 
 ## Shortcodes
 
@@ -76,9 +82,15 @@ Keys are created by the Wintracker admin (`php bin/api-key.php create "casinos.e
 | `type` + `id`                  | the same as `type="casino" id="bizzo"`                          |         |
 | `layout`                       | `grid` (tiles), `list` (label / value rows)                     | `grid`  |
 | `fields`                       | any of `wins,total_won,biggest_win,top_multiplier,last_win,games,rtp,volatility,provider` | casino: wins, total won, biggest win, top multiplier, last win · provider: + games · game: + RTP, volatility |
+| `details`                      | which win the biggest win, top multiplier and last win were: `inline` (a line under the value), `tooltip` (on hover / tap), `none` | `inline` |
 | `title`, `heading`, `class`    | as above                                                        |         |
 
 Fields without a value (e.g. no RTP known) are left out.
+
+Win details read, for example: biggest win "Gates of Olympus · Pragmatic Play · 3 days ago", top multiplier
+"€530.00 on a €0.50 bet · Gates of Olympus · Pragmatic Play · 2 weeks ago", last win "€12.40 · 31× · Book of Dead".
+What the card is about is left out (no game name on a game card) and the casino is added on provider and game cards.
+They cost up to three more cached API calls per card (`wins.php`, `limit=1`).
 
 ### Examples
 
@@ -181,7 +193,7 @@ No custom tables and nothing per visitor. Two small options in `wp_options`:
 
 | Option                  | What                                                                   | Autoloaded |
 |-------------------------|------------------------------------------------------------------------|------------|
-| `wintracker_api_key`    | the key saved on Settings → Wintracker (absent when it's in wp-config.php) | no     |
+| `wintracker_api_key`    | the key saved on Wintracker → Settings (absent when it's in wp-config.php) | no     |
 | `wintracker_cache_gen`  | a number raised by **Clear cache**, so old cache entries are skipped and expire | yes (a few bytes) |
 
 Everything else is a [transient](https://developer.wordpress.org/apis/transients/), which WordPress keeps in

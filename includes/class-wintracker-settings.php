@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings → Wintracker: API key, connection test, cache, version.
+ * Wintracker → Settings: API key, connection test, cache, version (administrators only).
  *
  * The key is saved in the wintracker_api_key option (not autoloaded). WINTRACKER_API_KEY in wp-config.php, when
  * defined, takes precedence and the field is locked. The saved key is never printed back into the page.
@@ -10,11 +10,12 @@ defined( 'ABSPATH' ) || exit;
 
 final class Wintracker_Settings {
 
-	const PAGE   = 'wintracker';
+	const PAGE   = 'wintracker-settings';
 	const OPTION = 'wintracker_api_key';
 
 	public static function init() {
-		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
+		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 11 ); // after the Wintracker menu (Wintracker_Builder)
+		add_action( 'admin_init', array( __CLASS__, 'old_url' ) );
 		add_action( 'admin_post_wintracker_save', array( __CLASS__, 'save' ) );
 		add_action( 'admin_post_wintracker_test', array( __CLASS__, 'test' ) );
 		add_action( 'admin_post_wintracker_flush', array( __CLASS__, 'flush' ) );
@@ -22,11 +23,20 @@ final class Wintracker_Settings {
 	}
 
 	public static function url() {
-		return admin_url( 'options-general.php?page=' . self::PAGE );
+		return admin_url( 'admin.php?page=' . self::PAGE );
 	}
 
 	public static function menu() {
-		add_options_page( 'Wintracker', 'Wintracker', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
+		add_submenu_page( Wintracker_Builder::PAGE, __( 'Wintracker settings', 'wintracker' ), __( 'Settings', 'wintracker' ), 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
+	}
+
+	/** Settings → Wintracker (1.2.x) moved to Wintracker → Settings. */
+	public static function old_url() {
+		global $pagenow;
+		if ( 'options-general.php' === $pagenow && isset( $_GET['page'] ) && 'wintracker' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+			wp_safe_redirect( self::url() );
+			exit;
+		}
 	}
 
 	public static function action_link( $links ) {
@@ -47,7 +57,7 @@ final class Wintracker_Settings {
 		delete_transient( self::notice_key() );
 		?>
 		<div class="wrap">
-			<h1>Wintracker</h1>
+			<h1><?php esc_html_e( 'Wintracker settings', 'wintracker' ); ?></h1>
 			<?php if ( is_array( $notice ) ) : ?>
 				<div class="notice notice-<?php echo esc_attr( $notice['type'] ); ?> is-dismissible"><p><?php echo esc_html( $notice['message'] ); ?></p></div>
 			<?php endif; ?>

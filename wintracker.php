@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Wintracker
  * Description:       Shows live casino wins and stats from the Wintracker API (latest wins, biggest wins, top multipliers, stats cards) via shortcodes and PHP functions.
- * Version:           1.2.1
+ * Version:           1.3.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Wintracker
@@ -10,13 +10,13 @@
  * Text Domain:       wintracker
  * Update URI:        https://github.com/didoivanov/wintracker-wp
  *
- * API key: Settings → Wintracker, or in wp-config.php (takes precedence):
+ * API key: Wintracker → Settings, or in wp-config.php (takes precedence):
  *     define( 'WINTRACKER_API_KEY', 'wt_...' );
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WINTRACKER_VERSION', '1.2.1' );
+define( 'WINTRACKER_VERSION', '1.3.0' );
 define( 'WINTRACKER_FILE', __FILE__ );
 define( 'WINTRACKER_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -29,11 +29,13 @@ require_once WINTRACKER_DIR . 'includes/class-wintracker-shortcodes.php';
 require_once WINTRACKER_DIR . 'includes/functions.php';
 require_once WINTRACKER_DIR . 'includes/class-wintracker-updater.php';
 require_once WINTRACKER_DIR . 'includes/class-wintracker-settings.php';
+require_once WINTRACKER_DIR . 'includes/class-wintracker-builder.php';
 
 Wintracker_Assets::init();
 Wintracker_Shortcodes::init();
 Wintracker_Updater::init();
 if ( is_admin() ) {
+	Wintracker_Builder::init();
 	Wintracker_Settings::init();
 }
 
@@ -51,7 +53,7 @@ add_action(
 			'<div class="notice notice-warning"><p><strong>Wintracker:</strong> %s <a href="%s">%s</a></p></div>',
 			esc_html__( 'add your API key to show live wins.', 'wintracker' ),
 			esc_url( Wintracker_Settings::url() ),
-			esc_html__( 'Settings → Wintracker', 'wintracker' )
+			esc_html__( 'Wintracker → Settings', 'wintracker' )
 		);
 	}
 );

@@ -47,6 +47,7 @@ final class Wintracker_Render {
 			'game'     => '',
 			'layout'   => 'grid',        // grid | list
 			'fields'   => '',            // e.g. "wins,biggest_win,top_multiplier"; default depends on the type
+			'details'  => 'inline',      // which win was the biggest / top multiplier / last: inline | tooltip | none
 			'title'    => '',
 			'heading'  => 'h3',
 			'class'    => '',
@@ -121,17 +122,29 @@ final class Wintracker_Render {
 				}
 			)
 		);
-		$layout = in_array( $args['layout'], self::STAT_LAYOUTS, true ) ? $args['layout'] : 'grid';
+		$layout  = in_array( $args['layout'], self::STAT_LAYOUTS, true ) ? $args['layout'] : 'grid';
+		$mode    = in_array( $args['details'], array( 'inline', 'tooltip', 'none' ), true ) ? $args['details'] : 'inline';
+		$details = array();
+		if ( 'none' !== $mode ) {
+			foreach ( Wintracker_Data::stat_details( $type, $row, $fields ) as $field => $win ) {
+				$html = Wintracker_Format::stat_detail( $field, $win, $type );
+				if ( '' !== $html ) {
+					$details[ $field ] = $html;
+				}
+			}
+		}
 
 		return self::template(
 			'stats-' . $layout,
 			array(
-				'stats'  => $row,
-				'type'   => $type,
-				'fields' => $fields,
-				'args'   => $args,
+				'stats'   => $row,
+				'type'    => $type,
+				'fields'  => $fields,
+				'details' => $details,
+				'tooltip' => 'tooltip' === $mode,
+				'args'    => $args,
 			),
-			array( 'wintracker--stats', 'wintracker--' . $layout, 'wintracker--' . $type ),
+			array( 'wintracker--stats', 'wintracker--' . $layout, 'wintracker--' . $type, 'wintracker--details-' . $mode ),
 			$args
 		);
 	}

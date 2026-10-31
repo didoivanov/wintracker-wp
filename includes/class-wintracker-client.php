@@ -56,7 +56,7 @@ final class Wintracker_Client {
 
 		$api_key = self::api_key();
 		if ( '' === $api_key ) {
-			return self::fail( 'missing_key', 'No API key: add it under Settings → Wintracker (or define WINTRACKER_API_KEY in wp-config.php).', $snapshot );
+			return self::fail( 'missing_key', 'No API key: add it under Wintracker → Settings (or define WINTRACKER_API_KEY in wp-config.php).', $snapshot );
 		}
 		if ( get_transient( self::PREFIX . 'paused' ) ) {
 			return self::fail( 'paused', 'The API failed recently; calls are paused for a minute and the last snapshot (if any) is shown.', $snapshot );
@@ -116,7 +116,7 @@ final class Wintracker_Client {
 		return self::$last_error;
 	}
 
-	/** The key from wp-config.php (WINTRACKER_API_KEY) if defined, else the one saved under Settings → Wintracker. */
+	/** The key from wp-config.php (WINTRACKER_API_KEY) if defined, else the one saved under Wintracker → Settings. */
 	public static function api_key() {
 		if ( self::key_in_config() ) {
 			return trim( (string) WINTRACKER_API_KEY );

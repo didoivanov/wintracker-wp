@@ -97,6 +97,49 @@ final class Wintracker_Format {
 		return '';
 	}
 
+	/**
+	 * The line under a stats value that says which win it was, e.g.
+	 *   biggest win:    "Gates of Olympus · Pragmatic Play · 3 days ago"
+	 *   top multiplier: "CA$2,981.20 on a CA$2.00 bet · Gates of Olympus · 3 days ago"
+	 *   last win:       "€12.40 · 31× · Book of Dead"
+	 * Leaves out what the card is about (no game name on a game card, no provider on a provider card) and
+	 * adds the casino on provider and game cards.
+	 *
+	 * @param string               $field biggest_win | top_multiplier | last_win
+	 * @param array<string, mixed> $win   a win from the API
+	 * @param string               $type  casino | provider | game: what the card is about
+	 */
+	public static function stat_detail( $field, array $win, $type ) {
+		$parts = array();
+		$win_amount = ! empty( $win['win'] ) ? self::money( $win['win']['amount'], $win['win']['currency'] ) : '';
+
+		if ( 'top_multiplier' === $field && '' !== $win_amount ) {
+			$parts[] = ! empty( $win['bet'] )
+				/* translators: 1: win amount, 2: bet amount */
+				? sprintf( esc_html__( '%1$s on a %2$s bet', 'wintracker' ), $win_amount, self::money( $win['bet']['amount'], $win['bet']['currency'] ) )
+				: $win_amount;
+		} elseif ( 'last_win' === $field && '' !== $win_amount ) {
+			$parts[] = $win_amount;
+			if ( isset( $win['multiplier'] ) ) {
+				$parts[] = self::multiplier( $win['multiplier'] );
+			}
+		}
+		if ( 'game' !== $type && ! empty( $win['game']['name'] ) ) {
+			$parts[] = esc_html( $win['game']['name'] );
+		}
+		if ( 'provider' !== $type && 'last_win' !== $field && ! empty( $win['provider']['name'] ) ) {
+			$parts[] = esc_html( $win['provider']['name'] );
+		}
+		if ( 'casino' !== $type && ! empty( $win['casino']['name'] ) ) {
+			/* translators: %s: casino name */
+			$parts[] = sprintf( esc_html__( 'at %s', 'wintracker' ), esc_html( $win['casino']['name'] ) );
+		}
+		if ( 'last_win' !== $field ) {
+			$parts[] = self::time_ago( $win['won_at'] ?? null );
+		}
+		return implode( ' · ', $parts );
+	}
+
 	/** Has the row a value for this stats field? (Templates skip empty ones.) */
 	public static function has_stat( array $row, $field ) {
 		$source = array(
