@@ -6,16 +6,18 @@ PHP functions.
 
 ## Setup
 
-1. Upload the plugin (Plugins → Add New → Upload, with `wintracker-wp.zip`) and activate **Wintracker**.
-2. Add the API key to `wp-config.php` (never to the theme or the database):
+1. Install `wintracker-wp.zip` from the [latest release](https://github.com/didoivanov/wintracker-wp/releases/latest)
+   (Plugins → Add New → Upload, or extract it into `wp-content/plugins/wintracker-wp/`) and activate **Wintracker**.
+   From then on it updates itself from this repository (below).
+2. Paste the API key under **Settings → Wintracker** and save: the page tests the key right away. The same page has
+   **Test connection** and **Clear cache** buttons.
+
+   Alternatively, define the key in `wp-config.php`. It then overrides the settings page and stays out of the
+   database (and its backups):
 
    ```php
    define( 'WINTRACKER_API_KEY', 'wt_…' );
    ```
-
-   Install the plugin from the `wintracker-wp.zip` of the
-   [latest release](https://github.com/didoivanov/wintracker-wp/releases/latest), into
-   `wp-content/plugins/wintracker-wp/`. From then on it updates itself from this repository (below).
 
 Keys are created by the Wintracker admin (`php bin/api-key.php create "casinos.example"`), one per site.
 
@@ -175,9 +177,15 @@ Without `WINTRACKER_AUTO_UPDATE`, each site's own "Enable auto-updates" link dec
 
 ## What is stored in the database
 
-No custom tables, no settings, nothing per visitor. Everything is a
-[transient](https://developer.wordpress.org/apis/transients/), which WordPress keeps in the `wp_options` table
-(or in Redis/Memcached when the site has a persistent object cache), each with an expiry:
+No custom tables and nothing per visitor. Two small options in `wp_options`:
+
+| Option                  | What                                                                   | Autoloaded |
+|-------------------------|------------------------------------------------------------------------|------------|
+| `wintracker_api_key`    | the key saved on Settings → Wintracker (absent when it's in wp-config.php) | no     |
+| `wintracker_cache_gen`  | a number raised by **Clear cache**, so old cache entries are skipped and expire | yes (a few bytes) |
+
+Everything else is a [transient](https://developer.wordpress.org/apis/transients/), which WordPress keeps in
+`wp_options` too (or in Redis/Memcached when the site has a persistent object cache), each with an expiry:
 
 | Entry (`_transient_…`)        | What                                                   | Lifetime                    | Size |
 |-------------------------------|--------------------------------------------------------|-----------------------------|------|
@@ -189,7 +197,8 @@ No custom tables, no settings, nothing per visitor. Everything is a
 
 So the database holds at most two copies per distinct widget configuration (`casino` + `sort` + `period` + …,
 not per page: ten pages with the same shortcode share one entry), and none of them is autoloaded. Snapshots of
-widgets nobody shows any more expire after 7 days. Deactivating leaves them to expire; uninstalling deletes them.
+widgets nobody shows any more expire after 7 days. Deactivating leaves them to expire; uninstalling deletes them
+and the two options.
 
 ## Notes
 

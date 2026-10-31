@@ -43,7 +43,8 @@ final class Wintracker_Client {
 			}
 		);
 		ksort( $params );
-		$key = md5( $endpoint . '?' . http_build_query( $params ) );
+		// The cache generation changes on "Clear cache", so every old entry is skipped and simply expires.
+		$key = md5( (int) get_option( 'wintracker_cache_gen', 0 ) . '|' . $endpoint . '?' . http_build_query( $params ) );
 
 		$fresh = get_transient( self::PREFIX . 'f_' . $key );
 		if ( is_array( $fresh ) ) {
@@ -55,7 +56,7 @@ final class Wintracker_Client {
 
 		$api_key = self::api_key();
 		if ( '' === $api_key ) {
-			return self::fail( 'missing_key', 'WINTRACKER_API_KEY is not defined in wp-config.php.', $snapshot );
+			return self::fail( 'missing_key', 'No API key: add it under Settings → Wintracker (or define WINTRACKER_API_KEY in wp-config.php).', $snapshot );
 		}
 		if ( get_transient( self::PREFIX . 'paused' ) ) {
 			return self::fail( 'paused', 'The API failed recently; calls are paused for a minute and the last snapshot (if any) is shown.', $snapshot );
@@ -115,8 +116,60 @@ final class Wintracker_Client {
 		return self::$last_error;
 	}
 
+	/** The key from wp-config.php (WINTRACKER_API_KEY) if defined, else the one saved under Settings → Wintracker. */
 	public static function api_key() {
-		return defined( 'WINTRACKER_API_KEY' ) ? trim( (string) WINTRACKER_API_KEY ) : '';
+		if ( self::key_in_config() ) {
+			return trim( (string) WINTRACKER_API_KEY );
+		}
+		return trim( (string) get_option( 'wintracker_api_key', '' ) );
+	}
+
+	public static function key_in_config() {
+		return defined( 'WINTRACKER_API_KEY' ) && '' !== trim( (string) WINTRACKER_API_KEY );
+	}
+
+	/**
+	 * Calls the API once without any cache, to check a key.
+	 *
+	 * @return array{ok: bool, message: string}
+	 */
+	public static function test( $api_key ) {
+		$response = wp_remote_get(
+			self::BASE_URL . 'casinos.php',
+			array(
+				'timeout'    => 10,
+				'headers'    => array(
+					'X-Api-Key' => (string) $api_key,
+					'Accept'    => 'application/json',
+				),
+				'user-agent' => 'Wintracker-WP/' . WINTRACKER_VERSION . '; ' . home_url( '/' ),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return array(
+				'ok'      => false,
+				'message' => $response->get_error_message(),
+			);
+		}
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( 200 === $status && isset( $body['data'] ) && is_array( $body['data'] ) ) {
+			return array(
+				'ok'      => true,
+				/* translators: %d: number of casinos */
+				'message' => sprintf( _n( 'Connected: the API tracks %d casino.', 'Connected: the API tracks %d casinos.', count( $body['data'] ), 'wintracker' ), count( $body['data'] ) ),
+			);
+		}
+		return array(
+			'ok'      => false,
+			'message' => "HTTP {$status}: " . ( $body['error']['message'] ?? __( 'unexpected response', 'wintracker' ) ),
+		);
+	}
+
+	/** Drops every cached response and snapshot (they expire on their own) and lifts an outage pause. */
+	public static function flush() {
+		update_option( 'wintracker_cache_gen', (int) get_option( 'wintracker_cache_gen', 0 ) + 1 );
+		delete_transient( self::PREFIX . 'paused' );
 	}
 
 	/** Seconds a response is considered fresh: 60 minimum, as the API refreshes once a minute. */

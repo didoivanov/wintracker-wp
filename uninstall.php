@@ -13,3 +13,6 @@ $wpdb->query(
 		$wpdb->esc_like( '_transient_timeout_wintracker_' ) . '%'
 	)
 );
+delete_option( 'wintracker_api_key' );
+delete_option( 'wintracker_cache_gen' );
+delete_site_transient( 'wintracker_update_release' );
