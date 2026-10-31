@@ -28,9 +28,9 @@ final class Wintracker_Render {
 			'period'   => '',            // day | week | month | all (default: all for latest, else day)
 			'limit'    => 10,            // 1-100
 			'layout'   => 'table',       // table | list | cards
-			'columns'  => '',            // e.g. "game,player,win,time"; default depends on the filters
+			'columns'  => '',            // e.g. "game,player,win,time"; default: the site default (Wintracker → Settings) minus the filters
 			'currency' => 'original',    // original | eur
-			'images'   => 'yes',         // game thumbnails: yes | no
+			'images'   => '',            // game thumbnails: yes | no; default: the site default (yes)
 			'title'    => '',
 			'heading'  => 'h3',
 			'empty'    => __( 'No wins tracked yet.', 'wintracker' ), // shown when the API has no wins; "" hides the widget
@@ -54,6 +54,24 @@ final class Wintracker_Render {
 		);
 	}
 
+	/** Columns shown when a widget has no columns attribute, in this order. */
+	const DEFAULT_COLUMNS = array( 'game', 'casino', 'player', 'bet', 'win', 'multiplier', 'time' );
+
+	/**
+	 * Site-wide display defaults from Wintracker → Settings.
+	 *
+	 * @return array{columns: string[], images: bool}
+	 */
+	public static function display() {
+		$saved   = get_option( 'wintracker_display', array() );
+		$saved   = is_array( $saved ) ? $saved : array();
+		$columns = isset( $saved['columns'] ) ? array_values( array_intersect( Wintracker_Format::WIN_COLUMNS, (array) $saved['columns'] ) ) : array();
+		return array(
+			'columns' => $columns ? $columns : self::DEFAULT_COLUMNS,
+			'images'  => ! isset( $saved['images'] ) || (bool) $saved['images'],
+		);
+	}
+
 	/** @param array<string, mixed> $args see wins_defaults() */
 	public static function wins( array $args ) {
 		$args = array_merge( self::wins_defaults(), array_change_key_case( $args, CASE_LOWER ) );
@@ -66,17 +84,22 @@ final class Wintracker_Render {
 		}
 
 		$layout  = in_array( $args['layout'], self::WIN_LAYOUTS, true ) ? $args['layout'] : 'table';
+		$display = self::display();
 		$columns = self::pick( $args['columns'], Wintracker_Format::WIN_COLUMNS );
 		if ( ! $columns ) {
-			// Leave out what every row has in common: no casino column on a casino page, no game column on a game page.
+			// The site default, leaving out what every row has in common: no casino column on a casino page,
+			// no game column on a game page (unless that leaves nothing).
 			$columns = array_values(
 				array_diff(
-					array( 'game', 'casino', 'player', 'bet', 'win', 'multiplier', 'time' ),
+					$display['columns'],
 					'' !== (string) $args['casino'] ? array( 'casino' ) : array(),
 					'' !== (string) $args['game'] ? array( 'game' ) : array()
 				)
 			);
+			$columns = $columns ? $columns : $display['columns'];
 		}
+		$images = strtolower( trim( (string) $args['images'] ) );
+		$images = '' === $images ? $display['images'] : ! in_array( $images, array( 'no', 'false', '0', 'off' ), true );
 
 		return self::template(
 			'wins-' . $layout,
@@ -85,7 +108,7 @@ final class Wintracker_Render {
 				'meta'     => $data['meta'],
 				'columns'  => $columns,
 				'currency' => 'eur' === $args['currency'] ? 'eur' : 'original',
-				'images'   => ! in_array( strtolower( (string) $args['images'] ), array( 'no', 'false', '0', 'off' ), true ),
+				'images'   => $images,
 				'empty'    => (string) $args['empty'],
 				'args'     => $args,
 			),
@@ -106,12 +129,13 @@ final class Wintracker_Render {
 			}
 		}
 		if ( ! in_array( $type, Wintracker_Data::TYPES, true ) ) {
-			return self::comment( 'Wintracker stats: set type="casino|provider|game" and id, or casino= / provider= / game=.' );
+			return self::comment( __( 'Wintracker stats: set casino="…", provider="…" or game="…".', 'wintracker' ) );
 		}
 
 		$row = Wintracker_Data::stats( $type, $id );
 		if ( null === $row ) {
-			return self::unavailable( "No {$type} \"{$id}\" found." );
+			/* translators: 1: casino, provider or game, 2: its slug or id */
+			return self::unavailable( sprintf( __( 'No %1$s "%2$s" found.', 'wintracker' ), $type, $id ) );
 		}
 		$fields = self::pick( $args['fields'], Wintracker_Format::STAT_FIELDS ) ?: explode( ',', self::STAT_DEFAULTS[ $type ] );
 		$fields = array_values(

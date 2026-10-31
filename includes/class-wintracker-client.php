@@ -56,10 +56,10 @@ final class Wintracker_Client {
 
 		$api_key = self::api_key();
 		if ( '' === $api_key ) {
-			return self::fail( 'missing_key', 'No API key: add it under Wintracker → Settings (or define WINTRACKER_API_KEY in wp-config.php).', $snapshot );
+			return self::fail( 'missing_key', __( 'No API key: add it under Wintracker → Settings (or define WINTRACKER_API_KEY in wp-config.php).', 'wintracker' ), $snapshot );
 		}
 		if ( get_transient( self::PREFIX . 'paused' ) ) {
-			return self::fail( 'paused', 'The API failed recently; calls are paused for a minute and the last snapshot (if any) is shown.', $snapshot );
+			return self::fail( 'paused', __( 'The Wintracker API failed recently; calls are paused for a minute and the last good data (if any) is shown.', 'wintracker' ), $snapshot );
 		}
 		// Another request is refreshing this entry right now: serve the snapshot instead of piling on.
 		$lock = self::PREFIX . 'l_' . $key;
@@ -98,7 +98,7 @@ final class Wintracker_Client {
 		}
 
 		$code    = isset( $body['error']['code'] ) ? (string) $body['error']['code'] : 'http_' . $status;
-		$message = isset( $body['error']['message'] ) ? (string) $body['error']['message'] : 'Unexpected response from the Wintracker API.';
+		$message = isset( $body['error']['message'] ) ? (string) $body['error']['message'] : __( 'Unexpected response from the Wintracker API.', 'wintracker' );
 
 		// The request itself is wrong (bad slug, game id, parameter): cache the error, don't fall back.
 		if ( in_array( $status, array( 400, 404 ), true ) ) {

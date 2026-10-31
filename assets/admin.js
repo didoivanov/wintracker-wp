@@ -230,7 +230,7 @@
 						b.type = 'button';
 						b.textContent = g.name;
 						var small = document.createElement( 'small' );
-						small.textContent = ( g.provider ? g.provider + ' · ' : '' ) + 'id ' + g.id + ' · ' + g.wins + ' wins';
+						small.textContent = ( g.provider ? g.provider + ' · ' : '' ) + cfg.i18n.gameMeta.replace( '%1$s', g.id ).replace( '%2$s', g.wins );
 						b.appendChild( small );
 						b.addEventListener( 'click', function () {
 							pickGame( g );

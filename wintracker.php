@@ -2,12 +2,13 @@
 /**
  * Plugin Name:       Wintracker
  * Description:       Shows live casino wins and stats from the Wintracker API (latest wins, biggest wins, top multipliers, stats cards) via shortcodes and PHP functions.
- * Version:           1.3.0
+ * Version:           1.4.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Wintracker
  * License:           GPL-2.0-or-later
  * Text Domain:       wintracker
+ * Domain Path:       /languages
  * Update URI:        https://github.com/didoivanov/wintracker-wp
  *
  * API key: Wintracker → Settings, or in wp-config.php (takes precedence):
@@ -16,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WINTRACKER_VERSION', '1.3.0' );
+define( 'WINTRACKER_VERSION', '1.4.0' );
 define( 'WINTRACKER_FILE', __FILE__ );
 define( 'WINTRACKER_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -30,6 +31,15 @@ require_once WINTRACKER_DIR . 'includes/functions.php';
 require_once WINTRACKER_DIR . 'includes/class-wintracker-updater.php';
 require_once WINTRACKER_DIR . 'includes/class-wintracker-settings.php';
 require_once WINTRACKER_DIR . 'includes/class-wintracker-builder.php';
+
+// Translations: languages/wintracker-<locale>.mo in the plugin, or wp-content/languages/plugins/ (Loco Translate,
+// Poedit, translate.wordpress.org-style files), which takes precedence. Template: languages/wintracker.pot.
+add_action(
+	'init',
+	static function () {
+		load_plugin_textdomain( 'wintracker', false, dirname( plugin_basename( WINTRACKER_FILE ) ) . '/languages' );
+	}
+);
 
 Wintracker_Assets::init();
 Wintracker_Shortcodes::init();

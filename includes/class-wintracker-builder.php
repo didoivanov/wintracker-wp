@@ -56,6 +56,8 @@ final class Wintracker_Builder {
 					'pickOne'   => __( 'Pick the casino, provider or game to show stats for.', 'wintracker' ),
 					'defaultAll' => __( 'Default (all time)', 'wintracker' ),
 					'defaultDay' => __( 'Default (last 24 hours)', 'wintracker' ),
+					/* translators: game search result: 1: game id, 2: number of wins */
+					'gameMeta'   => __( 'id %1$s · %2$s wins', 'wintracker' ),
 				),
 			)
 		);
@@ -66,6 +68,7 @@ final class Wintracker_Builder {
 			return;
 		}
 		$has_key   = '' !== Wintracker_Client::api_key();
+		$display   = Wintracker_Render::display();
 		$casinos   = $has_key ? Wintracker_Client::get( 'casinos' ) : null;
 		$providers = $has_key ? Wintracker_Client::get( 'providers' ) : null;
 		$casinos   = $casinos ? $casinos['data'] : array();
@@ -197,10 +200,10 @@ final class Wintracker_Builder {
 						<div class="wtb-field" data-show="wins">
 							<span class="wtb-label"><?php esc_html_e( 'Columns', 'wintracker' ); ?></span>
 							<div>
-								<label><input type="checkbox" id="wtb-columns-auto" checked> <?php esc_html_e( 'Automatic (leaves out what the widget is filtered by)', 'wintracker' ); ?></label>
+								<label><input type="checkbox" id="wtb-columns-auto" checked> <?php esc_html_e( 'Site default (Wintracker → Settings), minus what the widget is filtered by', 'wintracker' ); ?></label>
 								<div class="wtb-checks" id="wtb-columns" hidden>
 									<?php foreach ( Wintracker_Format::WIN_COLUMNS as $col ) : ?>
-										<label><input type="checkbox" name="columns[]" value="<?php echo esc_attr( $col ); ?>" <?php checked( 'provider' !== $col ); ?>> <?php echo Wintracker_Format::label( $col ); // phpcs:ignore WordPress.Security.EscapeOutput ?></label>
+										<label><input type="checkbox" name="columns[]" value="<?php echo esc_attr( $col ); ?>" <?php checked( in_array( $col, $display['columns'], true ) ); ?>> <?php echo Wintracker_Format::label( $col ); // phpcs:ignore WordPress.Security.EscapeOutput ?></label>
 									<?php endforeach; ?>
 								</div>
 							</div>
@@ -225,7 +228,12 @@ final class Wintracker_Builder {
 							</div>
 						</div>
 						<p class="wtb-field" data-show="wins">
-							<label><input type="checkbox" name="images" value="no"> <?php esc_html_e( 'Hide game images', 'wintracker' ); ?></label>
+							<label for="wtb-images"><?php esc_html_e( 'Game images', 'wintracker' ); ?></label>
+							<select id="wtb-images" name="images">
+								<option value=""><?php echo esc_html( $display['images'] ? __( 'Site default (shown)', 'wintracker' ) : __( 'Site default (hidden)', 'wintracker' ) ); ?></option>
+								<option value="yes"><?php esc_html_e( 'Show', 'wintracker' ); ?></option>
+								<option value="no"><?php esc_html_e( 'Hide', 'wintracker' ); ?></option>
+							</select>
 						</p>
 						<p class="wtb-field">
 							<label for="wtb-title"><?php esc_html_e( 'Heading', 'wintracker' ); ?></label>
@@ -275,9 +283,9 @@ final class Wintracker_Builder {
 			array( 'period', 'day, week, month, all', __( 'all for latest wins, else day', 'wintracker' ) ),
 			array( 'limit', '1–100', '10' ),
 			array( 'layout', 'table, list, cards', 'table' ),
-			array( 'columns', 'game, casino, provider, player, bet, win, multiplier, time — ' . __( 'in the order to show', 'wintracker' ), __( 'automatic', 'wintracker' ) ),
+			array( 'columns', 'game, casino, provider, player, bet, win, multiplier, time — ' . __( 'in the order to show; works for tables, lists and cards', 'wintracker' ), __( 'site default (Wintracker → Settings)', 'wintracker' ) ),
 			array( 'currency', 'original, eur', 'original' ),
-			array( 'images', 'yes, no', 'yes' ),
+			array( 'images', 'yes, no', __( 'site default (Wintracker → Settings)', 'wintracker' ) ),
 			array( 'title', __( 'Heading above the widget.', 'wintracker' ), '' ),
 			array( 'heading', 'h2, h3, h4, h5, h6, p, div', 'h3' ),
 			array( 'empty', __( 'Text when there are no wins yet; empty="" hides the widget.', 'wintracker' ), __( 'No wins tracked yet.', 'wintracker' ) ),

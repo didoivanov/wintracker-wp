@@ -64,15 +64,20 @@ shortcode or the PHP call. The same page has a reference of every shortcode and 
 | `period`   | `day`, `week`, `month`, `all`                                   | `all` for latest, else `day`   |
 | `limit`    | 1–100                                                           | `10`                           |
 | `layout`   | `table`, `list` (compact, for sidebars), `cards` (image grid)   | `table`                        |
-| `columns`  | any of `game,casino,provider,player,bet,win,multiplier,time`, in the order to show | everything except what the widget is filtered by |
+| `columns`  | any of `game,casino,provider,player,bet,win,multiplier,time`, in the order to show (tables, lists and cards) | the site default, minus what the widget is filtered by |
 | `currency` | `original` (the casino's currency), `eur`                       | `original`                     |
-| `images`   | `yes`, `no` (game thumbnails)                                   | `yes`                          |
+| `images`   | `yes`, `no` (game thumbnails)                                   | the site default (`yes`)       |
 | `title`    | heading above the widget                                        | none                           |
 | `heading`  | `h2`–`h6`, `p`, `div`                                           | `h3`                           |
 | `empty`    | text when there are no wins yet; `""` hides the widget instead  | "No wins tracked yet."         |
 | `class`    | extra CSS classes                                               |                                |
 
 `casino`, `provider` and `game` combine, e.g. one game at one casino.
+
+**Site-wide defaults.** **Wintracker → Settings → Display defaults** sets which columns and whether game images
+every wins widget shows. To drop a column everywhere (say the player name), untick it there instead of editing
+each shortcode. A shortcode's own `columns="…"` / `images="…"` still wins. Widgets filtered by casino leave the
+casino column out, widgets filtered by game the game column.
 
 ### Stats attributes
 
@@ -155,6 +160,19 @@ The widgets take Wintracker's own identifiers:
 - casinos: `slug` from `/api/v1/casinos.php` (e.g. `bizzo`)
 - providers: `slug` from `/api/v1/providers.php?q=prag`
 - games: `id` from `/api/v1/games.php?q=elvis` (the API has no game slugs)
+
+## Translations
+
+Every label and message is translatable (text domain `wintracker`). Numbers, amounts and dates follow the site's
+language automatically. The template is [`languages/wintracker.pot`](languages/wintracker.pot).
+
+- **Loco Translate:** Loco Translate → Plugins → Wintracker → New language. Save the files in Loco's "Custom" or
+  "System" location (not "Author"), so plugin updates don't overwrite them.
+- **Poedit:** create `wintracker-<locale>.po` (e.g. `wintracker-pl_PL.po`) from the `.pot` and put the `.po`/`.mo`
+  in `wp-content/languages/plugins/`.
+
+After changing or adding strings in the code, run `php bin/make-pot.php` and commit the new `.pot`; the release
+workflow refuses to publish when it is out of date.
 
 ## Customising
 

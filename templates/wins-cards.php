@@ -1,6 +1,7 @@
 <?php
 /**
  * Wins as a grid of cards (big game image, win amount in front). Good for "biggest wins" sections.
+ * Shows the columns it is given: win and game on top, the rest as label / value rows.
  * Override: copy to <theme>/wintracker/wins-cards.php.
  *
  * @var array<int, array<string, mixed>> $wins
@@ -24,7 +25,9 @@ $wt_details = array_values( array_diff( $columns, array( 'game', 'win' ) ) );
 			<?php if ( $images && ! empty( $win['game']['image_url'] ) ) : ?>
 				<img class="wintracker__card-img" src="<?php echo esc_url( $win['game']['image_url'] ); ?>" alt="" width="160" height="160" loading="lazy" decoding="async">
 			<?php endif; ?>
-			<span class="wintracker__card-win"><?php echo Wintracker_Format::win_cell( $win, 'win', $currency ); // phpcs:ignore WordPress.Security.EscapeOutput ?></span>
+			<?php if ( in_array( 'win', $columns, true ) ) : ?>
+				<span class="wintracker__card-win"><?php echo Wintracker_Format::win_cell( $win, 'win', $currency ); // phpcs:ignore WordPress.Security.EscapeOutput ?></span>
+			<?php endif; ?>
 			<?php if ( in_array( 'game', $columns, true ) ) : ?>
 				<span class="wintracker__card-game"><?php echo Wintracker_Format::win_cell( $win, 'game', $currency, false ); // phpcs:ignore WordPress.Security.EscapeOutput ?></span>
 			<?php endif; ?>

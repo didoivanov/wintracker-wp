@@ -90,7 +90,19 @@ final class Wintracker_Format {
 			case 'rtp':
 				return isset( $row['rtp'] ) ? esc_html( number_format_i18n( (float) $row['rtp'], 2 ) . '%' ) : self::none();
 			case 'volatility':
-				return ! empty( $row['volatility'] ) ? esc_html( ucfirst( (string) $row['volatility'] ) ) : self::none();
+				if ( empty( $row['volatility'] ) ) {
+					return self::none();
+				}
+				$levels = array(
+					'low'       => __( 'Low', 'wintracker' ),
+					'medium'    => __( 'Medium', 'wintracker' ),
+					'mid'       => __( 'Medium', 'wintracker' ),
+					'high'      => __( 'High', 'wintracker' ),
+					'very high' => __( 'Very high', 'wintracker' ),
+					'very_high' => __( 'Very high', 'wintracker' ),
+				);
+				$level  = strtolower( trim( (string) $row['volatility'] ) );
+				return esc_html( $levels[ $level ] ?? ucfirst( $level ) );
 			case 'provider':
 				return ! empty( $row['provider']['name'] ) ? esc_html( $row['provider']['name'] ) : self::none();
 		}

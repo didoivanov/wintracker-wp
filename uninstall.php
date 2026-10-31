@@ -15,4 +15,5 @@ $wpdb->query(
 );
 delete_option( 'wintracker_api_key' );
 delete_option( 'wintracker_cache_gen' );
+delete_option( 'wintracker_display' );
 delete_site_transient( 'wintracker_update_release' );

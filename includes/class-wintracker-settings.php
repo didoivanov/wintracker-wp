@@ -19,6 +19,7 @@ final class Wintracker_Settings {
 		add_action( 'admin_post_wintracker_save', array( __CLASS__, 'save' ) );
 		add_action( 'admin_post_wintracker_test', array( __CLASS__, 'test' ) );
 		add_action( 'admin_post_wintracker_flush', array( __CLASS__, 'flush' ) );
+		add_action( 'admin_post_wintracker_display', array( __CLASS__, 'save_display' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WINTRACKER_FILE ), array( __CLASS__, 'action_link' ) );
 	}
 
@@ -97,6 +98,35 @@ final class Wintracker_Settings {
 				</form>
 			<?php endif; ?>
 
+			<h2><?php esc_html_e( 'Display defaults', 'wintracker' ); ?></h2>
+			<p><?php esc_html_e( 'What latest wins, biggest wins and top multipliers show (tables, lists and cards) unless a shortcode sets its own columns="…" or images="…". The casino column is left out on widgets filtered by casino, the game column on widgets filtered by game.', 'wintracker' ); ?></p>
+			<?php $display = Wintracker_Render::display(); ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="wintracker_display">
+				<?php wp_nonce_field( 'wintracker_display' ); ?>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Columns', 'wintracker' ); ?></th>
+						<td>
+							<fieldset>
+								<legend class="screen-reader-text"><?php esc_html_e( 'Columns', 'wintracker' ); ?></legend>
+								<?php foreach ( Wintracker_Format::WIN_COLUMNS as $column ) : ?>
+									<label style="display:block;margin-bottom:4px">
+										<input type="checkbox" name="columns[]" value="<?php echo esc_attr( $column ); ?>" <?php checked( in_array( $column, $display['columns'], true ) ); ?>>
+										<?php echo Wintracker_Format::label( $column ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+									</label>
+								<?php endforeach; ?>
+							</fieldset>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Game images', 'wintracker' ); ?></th>
+						<td><label><input type="checkbox" name="images" value="1" <?php checked( $display['images'] ); ?>> <?php esc_html_e( 'Show game thumbnails', 'wintracker' ); ?></label></td>
+					</tr>
+				</table>
+				<?php submit_button( __( 'Save display defaults', 'wintracker' ) ); ?>
+			</form>
+
 			<h2><?php esc_html_e( 'Connection and cache', 'wintracker' ); ?></h2>
 			<p><?php esc_html_e( 'Responses are cached for 60 seconds. The last good response of each widget is kept for 7 days and shown while the API is down.', 'wintracker' ); ?></p>
 			<p>
@@ -158,6 +188,24 @@ final class Wintracker_Settings {
 		self::guard( 'wintracker_test' );
 		$test = Wintracker_Client::test( Wintracker_Client::api_key() );
 		self::done( $test['ok'] ? 'success' : 'error', $test['message'] );
+	}
+
+	public static function save_display() {
+		self::guard( 'wintracker_display' );
+		$posted  = isset( $_POST['columns'] ) && is_array( $_POST['columns'] ) ? array_map( 'sanitize_key', wp_unslash( $_POST['columns'] ) ) : array();
+		$columns = array_values( array_intersect( Wintracker_Format::WIN_COLUMNS, $posted ) );
+		if ( ! $columns ) {
+			self::done( 'error', __( 'Keep at least one column. Nothing was saved.', 'wintracker' ) );
+		}
+		update_option(
+			'wintracker_display',
+			array(
+				'columns' => $columns,
+				'images'  => ! empty( $_POST['images'] ),
+			),
+			true
+		);
+		self::done( 'success', __( 'Display defaults saved. Pages with a page cache show them after the cache is cleared.', 'wintracker' ) );
 	}
 
 	public static function flush() {
