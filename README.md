@@ -6,12 +6,16 @@ PHP functions.
 
 ## Setup
 
-1. Upload the `wintracker-wp` folder to `wp-content/plugins/` and activate **Wintracker**.
+1. Upload the plugin (Plugins → Add New → Upload, with `wintracker-wp.zip`) and activate **Wintracker**.
 2. Add the API key to `wp-config.php` (never to the theme or the database):
 
    ```php
    define( 'WINTRACKER_API_KEY', 'wt_…' );
    ```
+
+   Install the plugin from the `wintracker-wp.zip` of the
+   [latest release](https://github.com/didoivanov/wintracker-wp/releases/latest), into
+   `wp-content/plugins/wintracker-wp/`. From then on it updates itself from this repository (below).
 
 Keys are created by the Wintracker admin (`php bin/api-key.php create "casinos.example"`), one per site.
 
@@ -146,6 +150,46 @@ The widgets take Wintracker's own identifiers:
 - **Templates**: copy any file from `templates/` to `<theme>/wintracker/` (e.g. `wintracker/wins-cards.php`) and edit it.
 - **Filters**: `wintracker_cache_ttl`, `wintracker_snapshot_ttl`, `wintracker_timeout` (default 5 s),
   `wintracker_label`, `wintracker_money`, `wintracker_template`, `wintracker_html`, `wintracker_load_css`.
+
+## Updates from GitHub
+
+The plugin updates through the normal wp-admin screens, from this repository's
+[releases](https://github.com/didoivanov/wintracker-wp/releases): update notice on Plugins and Dashboard → Updates,
+"View details" with the release notes, one-click update, and WordPress's "Enable auto-updates" link.
+
+**Shipping a new version:** raise `Version:` and `WINTRACKER_VERSION` in `wintracker.php` (they must match) and
+merge to the default branch. The [Release workflow](.github/workflows/release.yml) lints the PHP, builds
+`wintracker-wp.zip` and publishes release `vX.Y.Z`. Sites see it within 6 hours, or right away with
+**Dashboard → Updates → Check again**. Pushes that don't change the version publish nothing.
+
+Optional `wp-config.php` constants:
+
+```php
+define( 'WINTRACKER_AUTO_UPDATE', true );   // install new versions automatically on this site (false: never)
+define( 'WINTRACKER_GITHUB_TOKEN', '…' );   // read-only GitHub token: only needed if the repository becomes private,
+                                            // or if many sites share one IP (GitHub allows 60 anonymous requests/hour)
+```
+
+Without `WINTRACKER_AUTO_UPDATE`, each site's own "Enable auto-updates" link decides. The token is sent only to
+`api.github.com` / `codeload.github.com` for this repository.
+
+## What is stored in the database
+
+No custom tables, no settings, nothing per visitor. Everything is a
+[transient](https://developer.wordpress.org/apis/transients/), which WordPress keeps in the `wp_options` table
+(or in Redis/Memcached when the site has a persistent object cache), each with an expiry:
+
+| Entry (`_transient_…`)        | What                                                   | Lifetime                    | Size |
+|-------------------------------|--------------------------------------------------------|-----------------------------|------|
+| `wintracker_f_<hash>`         | API response of one widget configuration (fresh copy)  | 60 s                        | ~6 KB at the default `limit` 10, ~60 KB at 100 |
+| `wintracker_s_<hash>`         | last good response of that widget (outage snapshot)    | 7 days, rewritten on every refresh | same |
+| `wintracker_l_<hash>`         | "refresh in progress" lock                             | 30 s                        | tiny |
+| `wintracker_paused`           | API failed: pause calls                                | 1–15 min                    | tiny |
+| `wintracker_update_release`   | latest GitHub release (site transient)                 | re-checked every 6 h        | tiny |
+
+So the database holds at most two copies per distinct widget configuration (`casino` + `sort` + `period` + …,
+not per page: ten pages with the same shortcode share one entry), and none of them is autoloaded. Snapshots of
+widgets nobody shows any more expire after 7 days. Deactivating leaves them to expire; uninstalling deletes them.
 
 ## Notes
 

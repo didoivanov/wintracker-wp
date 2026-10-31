@@ -1,0 +1,3 @@
+# Left out of the release zip and GitHub's source zipball.
+.github         export-ignore
+.gitattributes  export-ignore
