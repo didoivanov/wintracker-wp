@@ -1,0 +1,199 @@
+/*
+ * Wintracker widgets. Loaded only on pages that show one.
+ * Inherits the theme's font and text colour; adjust with the custom properties, e.g.
+ *   .wintracker { --wt-accent: #0a7d3b; --wt-radius: 4px; }
+ */
+.wintracker {
+	--wt-accent: #1a7f37;
+	--wt-border: rgba(128, 128, 128, .25);
+	--wt-muted: rgba(128, 128, 128, 1);
+	--wt-surface: rgba(128, 128, 128, .06);
+	--wt-radius: 8px;
+	margin: 1.5em 0;
+	font-variant-numeric: tabular-nums;
+}
+@supports (color: color-mix(in srgb, red, blue)) {
+	.wintracker {
+		--wt-border: color-mix(in srgb, currentColor 14%, transparent);
+		--wt-muted: color-mix(in srgb, currentColor 62%, transparent);
+		--wt-surface: color-mix(in srgb, currentColor 4%, transparent);
+	}
+}
+.wintracker *,
+.wintracker *::before,
+.wintracker *::after { box-sizing: border-box; }
+.wintracker__title { margin: 0 0 .6em; }
+.wintracker__empty,
+.wintracker__none { color: var(--wt-muted); }
+.wintracker__col-win strong,
+.wintracker__card-win strong { color: var(--wt-accent); }
+.wintracker__img {
+	width: 32px;
+	height: 32px;
+	border-radius: 4px;
+	object-fit: cover;
+	vertical-align: middle;
+	margin-right: .5em;
+}
+.wintracker time { white-space: nowrap; }
+
+/* Table */
+.wintracker__scroll { overflow-x: auto; }
+.wintracker__table {
+	width: 100%;
+	margin: 0;
+	border-collapse: collapse;
+	font-size: .95em;
+}
+.wintracker__table th,
+.wintracker__table td {
+	padding: .55em .75em;
+	border: 0;
+	border-bottom: 1px solid var(--wt-border);
+	text-align: left;
+	vertical-align: middle;
+}
+.wintracker__table th {
+	font-size: .8em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--wt-muted);
+}
+.wintracker__table .wintracker__col-bet,
+.wintracker__table .wintracker__col-win,
+.wintracker__table .wintracker__col-multiplier,
+.wintracker__table .wintracker__col-time { text-align: right; white-space: nowrap; }
+.wintracker__table tbody tr:hover { background: var(--wt-surface); }
+
+@media (max-width: 600px) {
+	.wintracker__table thead { display: none; }
+	.wintracker__table tr {
+		display: block;
+		padding: .5em 0;
+		border-bottom: 1px solid var(--wt-border);
+	}
+	.wintracker__table td {
+		display: flex;
+		justify-content: space-between;
+		gap: 1em;
+		padding: .2em 0;
+		border: 0;
+		text-align: right;
+	}
+	.wintracker__table td::before {
+		content: attr(data-label);
+		color: var(--wt-muted);
+		text-align: left;
+	}
+	.wintracker__table .wintracker__col-game { justify-content: flex-start; align-items: center; font-weight: 600; text-align: left; }
+	.wintracker__table .wintracker__col-game::before { content: none; }
+}
+
+/* List */
+.wintracker__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.wintracker__item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: .25em 1em;
+	margin: 0;
+	padding: .5em 0;
+	border-bottom: 1px solid var(--wt-border);
+}
+.wintracker__main,
+.wintracker__side {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: .2em .75em;
+}
+.wintracker__main .wintracker__col-casino,
+.wintracker__main .wintracker__col-provider,
+.wintracker__side { color: var(--wt-muted); font-size: .9em; }
+.wintracker__main .wintracker__col-game { font-weight: 600; }
+.wintracker__side .wintracker__col-win { font-size: 1.1em; }
+
+/* Cards */
+.wintracker__cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: .75em;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.wintracker__card {
+	display: flex;
+	flex-direction: column;
+	gap: .3em;
+	margin: 0;
+	padding: .75em;
+	border: 1px solid var(--wt-border);
+	border-radius: var(--wt-radius);
+	background: var(--wt-surface);
+}
+.wintracker__card-img {
+	width: 100%;
+	height: auto;
+	aspect-ratio: 1;
+	object-fit: cover;
+	border-radius: calc(var(--wt-radius) - 2px);
+}
+.wintracker__card-win { font-size: 1.25em; line-height: 1.2; }
+.wintracker__card-game { font-weight: 600; line-height: 1.3; }
+.wintracker__card-details {
+	margin: .25em 0 0;
+	font-size: .85em;
+}
+.wintracker__card-details div {
+	display: flex;
+	justify-content: space-between;
+	gap: .5em;
+}
+.wintracker__card-details dt { color: var(--wt-muted); }
+.wintracker__card-details dd { margin: 0; text-align: right; }
+
+/* Stats: tiles */
+.wintracker__stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: .75em;
+	margin: 0;
+}
+.wintracker__stat {
+	display: flex;
+	flex-direction: column-reverse;
+	gap: .2em;
+	padding: .9em 1em;
+	border: 1px solid var(--wt-border);
+	border-radius: var(--wt-radius);
+	background: var(--wt-surface);
+}
+.wintracker__stat dt {
+	font-size: .8em;
+	color: var(--wt-muted);
+}
+.wintracker__stat dd {
+	margin: 0;
+	font-size: 1.35em;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+/* Stats: fact list */
+.wintracker__facts { margin: 0; }
+.wintracker__fact {
+	display: flex;
+	justify-content: space-between;
+	gap: 1em;
+	padding: .45em 0;
+	border-bottom: 1px solid var(--wt-border);
+}
+.wintracker__fact dt { color: var(--wt-muted); }
+.wintracker__fact dd { margin: 0; font-weight: 600; text-align: right; }
