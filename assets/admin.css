@@ -101,3 +101,48 @@ details.wtb-code .wtb-code-head { margin-top: 8px; }
 .wtb-ref { max-width: 1100px; margin-bottom: 8px; }
 .wtb-ref td:first-child { white-space: nowrap; }
 .wtb-notes { list-style: disc; padding-left: 20px; max-width: 900px; }
+
+/* Wintracker → Links */
+.wtl-intro { max-width: 820px; font-size: 14px; }
+.wtl .nav-tab-wrapper { margin-bottom: 12px; }
+.wtl-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; }
+.wtl-toolbar input[type="search"] { min-width: 240px; }
+.wtl-toolbar .description { flex-basis: 100%; margin: 0; }
+.wtl-bulk { margin-left: auto; display: inline-flex; gap: 6px; }
+.wtl-table td, .wtl-table th { vertical-align: middle; }
+.wtl-table .check-column { width: 2.2em; }
+.wtl-muted { color: #646970; }
+.wtl-table tr.is-saving { opacity: .55; }
+.wtl-actions { white-space: nowrap; }
+.wtl-actions .button-link { margin-left: 8px; }
+.wtl-pick { position: relative; display: inline-block; }
+.wtl-q { width: 220px; }
+.wtl-results {
+	list-style: none;
+	padding: 0;
+	position: absolute;
+	z-index: 30;
+	left: 0;
+	min-width: 320px;
+	max-height: 260px;
+	overflow: auto;
+	margin: 2px 0 0;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+}
+.wtl-results li { margin: 0; list-style: none; }
+.wtl-results li.wtl-muted { padding: 6px 10px; }
+.wtl-results button { display: block; width: 100%; padding: 6px 10px; border: 0; background: none; text-align: left; cursor: pointer; white-space: normal; }
+.wtl-results button:hover, .wtl-results button:focus { background: #f0f6fc; }
+.wtl-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; line-height: 1.7; background: #f0f0f1; color: #50575e; }
+.wtl-badge-manual { background: #e7f0fa; color: #135e96; }
+.wtl-badge-auto { background: #edfaef; color: #00692b; }
+.wtl-badge-blocked { background: #f6f7f7; color: #8c8f94; }
+.wtl-badge-ambiguous { background: #fcf9e8; color: #8a6d00; }
+.wtl-edit { margin-left: 6px; }
+@media (max-width: 960px) {
+	.wtl-actions { white-space: normal; }
+	.wtl-q { width: 100%; }
+}

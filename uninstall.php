@@ -19,6 +19,8 @@ delete_option( 'wintracker_display' );
 delete_option( 'wintracker_link_types' );
 delete_option( 'wintracker_links' );
 delete_option( 'wintracker_links_report' );
+delete_option( 'wintracker_links_manual' );
+delete_option( 'wintracker_links_schema' );
 delete_post_meta_by_key( '_wintracker_link' );
 wp_clear_scheduled_hook( 'wintracker_links_daily' );
 wp_clear_scheduled_hook( 'wintracker_links_rebuild' );

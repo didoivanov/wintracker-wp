@@ -169,13 +169,20 @@ pages and provider pages. Game, casino and provider names in the widgets then li
 - **Matching:** by name and slug, exact first, then ignoring accents, punctuation and filler words ("Bizzo Casino
   Review" ↔ Bizzo Casino, "Gates of Olympus Slot" ↔ Gates of Olympus; filter `wintracker_link_stopwords`). A name
   that matches several pages equally is not linked and is listed on the settings page.
-- **Manual matching:** the **Wintracker** box on the edit screen of those post types: *Automatic*, a specific
+- **Review and edit: Wintracker → Links** (editors and up). One tab per kind, search by name, filter by status
+  (linked, not linked, set by hand, several matches, never linked), 50 per page. Per row: type to search your pages
+  and pick one, or *Automatic*, or *Don't link*; each change saves immediately. Bulk: tick rows → *Set to automatic*
+  or *Don't link*. A page belongs to one item: giving it to another item frees the first one.
+- **Manual matching on the edit screen:** the **Wintracker** box on pages of those post types: *Automatic*, a specific
   casino / provider / game id, or *Don't link this page*. Applies as soon as the post is saved.
+- **Instant:** manual choices, and newly published or renamed pages, update the links immediately (a new page is
+  matched against the cached Wintracker list); the full rebuild then confirms them in the background.
 - **When:** matching runs in the background (WP-Cron) after saving the settings or clicking **Rebuild links now**,
   daily, and about 2 minutes after a page of a linked type is published, renamed or unpublished. Games are read
   from the API 100 at a time, uncached, so the job doesn't fill the cache.
-- **Storage:** one option, `wintracker_links`, holding only the matches (Wintracker id → post id), not autoloaded,
-  plus the post meta `_wintracker_link` for manual choices and a small report for the settings page.
+- **Storage:** `wintracker_links`, only the matches (Wintracker id → post id); `wintracker_links_manual`, the choices
+  made by hand (Wintracker id → post id, or 0 = never link); both not autoloaded. Pages marked "don't link" carry the
+  post meta `_wintracker_link` = `none`. Plus a small report for the settings page.
 - **Front-end cost:** that option is read once per request; the linked posts of a widget are loaded in one query
   (skipped when already loaded). A page never links to itself; unpublished pages are never linked.
 - The URL can be changed with the `wintracker_link_url` filter (`$url, $kind, $wintracker_id, $post_id`).
@@ -237,9 +244,10 @@ No custom tables and nothing per visitor. A few small options in `wp_options`:
 | `wintracker_display`    | display defaults (columns, images)                                     | yes (a few bytes) |
 | `wintracker_link_types` | post types for links (only when links are used)                        | no         |
 | `wintracker_links`      | the links: Wintracker id → post id, matches only (~20 bytes each)       | no         |
+| `wintracker_links_manual` | links set by hand: Wintracker id → post id, or 0 = never link        | no         |
 | `wintracker_links_report` | counts and unmatched names for the settings page                     | no         |
 
-Manual link choices are the `_wintracker_link` post meta of the pages concerned.
+Pages marked "don't link this page" have the `_wintracker_link` post meta set to `none`.
 
 Everything else is a [transient](https://developer.wordpress.org/apis/transients/), which WordPress keeps in
 `wp_options` too (or in Redis/Memcached when the site has a persistent object cache), each with an expiry:

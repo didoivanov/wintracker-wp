@@ -206,7 +206,7 @@ final class Wintracker_Settings {
 		unset( $post_types['attachment'] );
 		?>
 		<h2 id="links"><?php esc_html_e( 'Links to your pages', 'wintracker' ); ?></h2>
-		<p><?php esc_html_e( 'Optional. Game, casino and provider names in the widgets link to your own review pages when one matches by name or slug (for example "Bizzo Casino Review" for Bizzo Casino). Matching runs when you save here or click "Rebuild links now", daily, and shortly after a page of that type is published or renamed. To fix or force a match, use the Wintracker box on the page\'s edit screen.', 'wintracker' ); ?></p>
+		<p><?php esc_html_e( 'Optional. Game, casino and provider names in the widgets link to your own review pages when one matches by name or slug (for example "Bizzo Casino Review" for Bizzo Casino). Matching runs when you save here or click "Rebuild links now", daily, and shortly after a page of that type is published or renamed. To review, fix or force matches, use Wintracker → Links (or the Wintracker box on a page\'s edit screen).', 'wintracker' ); ?></p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="wintracker_links">
 			<?php wp_nonce_field( 'wintracker_links' ); ?>
@@ -267,7 +267,10 @@ final class Wintracker_Settings {
 			</p>
 		</form>
 		<?php if ( Wintracker_Links::enabled() ) : ?>
-			<p><?php self::button( 'wintracker_links_rebuild', __( 'Rebuild links now', 'wintracker' ) ); ?></p>
+			<p>
+				<?php self::button( 'wintracker_links_rebuild', __( 'Rebuild links now', 'wintracker' ) ); ?>
+				<a class="button" href="<?php echo esc_url( Wintracker_Links_Editor::url() ); ?>"><?php esc_html_e( 'Review and edit links', 'wintracker' ); ?></a>
+			</p>
 		<?php endif; ?>
 		<?php
 	}

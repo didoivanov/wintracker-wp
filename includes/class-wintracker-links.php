@@ -11,8 +11,10 @@
  * linked posts' permalinks. Nothing is matched while a visitor waits.
  *
  * The map is rebuilt: when the settings are saved or "Rebuild links" is clicked, once a day, and ~2 minutes after a
- * post of a linked type is published, renamed or trashed. Manual choices (the Wintracker box on the edit screen,
- * stored as the _wintracker_link post meta: a Wintracker id, "none", or empty for automatic) apply immediately.
+ * post of a linked type is published, renamed or trashed (that post is also matched on the spot). Manual choices
+ * (Wintracker → Links, or the Wintracker box on the edit screen) apply immediately and are kept in
+ * wintracker_links_manual (per Wintracker item: a post id, or 0 = never link); a page that must never be linked
+ * has the _wintracker_link post meta "none".
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,7 +24,8 @@ final class Wintracker_Links {
 	const TYPES_OPTION  = 'wintracker_link_types';  // [ casino|provider|game => post type ]
 	const MAP_OPTION    = 'wintracker_links';       // the matches (front end)
 	const REPORT_OPTION = 'wintracker_links_report'; // counts, unlinked and ambiguous names (admin only)
-	const META          = '_wintracker_link';
+	const MANUAL_OPTION = 'wintracker_links_manual'; // [ kind => [ wintracker id => post id, or 0 = never link ] ]
+	const META          = '_wintracker_link';        // "none" on a page that must never be linked
 	const CRON_DAILY    = 'wintracker_links_daily';
 	const CRON_SOON     = 'wintracker_links_rebuild';
 	const KINDS         = array( 'casino', 'provider', 'game' );
@@ -37,6 +40,7 @@ final class Wintracker_Links {
 		add_action( 'transition_post_status', array( __CLASS__, 'post_changed' ), 10, 3 );
 		add_action( 'post_updated', array( __CLASS__, 'post_renamed' ), 10, 3 );
 		if ( is_admin() ) {
+			add_action( 'admin_init', array( __CLASS__, 'maybe_migrate' ) );
 			add_action( 'add_meta_boxes', array( __CLASS__, 'add_meta_box' ) );
 			add_action( 'save_post', array( __CLASS__, 'save_meta_box' ), 10, 2 );
 		}
@@ -166,29 +170,41 @@ final class Wintracker_Links {
 
 	/**
 	 * Matches entities to posts. Exact name/slug first, then loose (no stopwords); a key shared by several posts is
-	 * ambiguous and never used. Manual choices win; posts marked "none" are never matched.
+	 * ambiguous and never used. Manual choices win; excluded posts and posts chosen by hand are left out of
+	 * automatic matching.
 	 *
-	 * @param array<int, array{id: int, name: string, slug?: string|null}> $entities
-	 * @param array<int, array{ID: int, post_title: string, post_name: string}> $posts
-	 * @param array<int, string> $manual post id => meta value (entity id or "none")
-	 * @return array{map: array<int, int>, ambiguous: string[], manual: int}
+	 * @param array<int, array{id: int, name: string, slug?: string|null}>          $entities
+	 * @param array<int, array{ID: int, post_title: string, post_name: string}>  $posts    published posts
+	 * @param array<int, bool>                                                     $excluded post id => true ("don't link this page")
+	 * @param array<int, int>                                                      $manual   wintracker id => post id, or 0 = never link
+	 * @return array{map: array<int, int>, ambiguous: string[], ambiguous_ids: int[], manual: int}
 	 */
-	public static function match( $kind, array $entities, array $posts, array $manual ) {
-		$index = array( 'exact' => array(), 'loose' => array() );
+	public static function match( $kind, array $entities, array $posts, array $excluded = array(), array $manual = array() ) {
+		$taken     = array_flip( array_filter( array_map( 'intval', $manual ) ) );
+		$published = array();
+		$index     = array(
+			'exact' => array(),
+			'loose' => array(),
+		);
 		foreach ( $posts as $post ) {
-			$pid = (int) $post['ID'];
-			if ( isset( $manual[ $pid ] ) && '' !== (string) $manual[ $pid ] ) {
-				continue; // manually set (to an entity or to "none"): not part of automatic matching
+			$pid               = (int) $post['ID'];
+			$published[ $pid ] = true;
+			if ( isset( $excluded[ $pid ] ) || isset( $taken[ $pid ] ) ) {
+				continue;
 			}
 			foreach ( array( $post['post_title'], str_replace( '-', ' ', urldecode( (string) $post['post_name'] ) ) ) as $text ) {
-				$index['exact'][ self::key( $text ) ][ $pid ]       = true;
+				$index['exact'][ self::key( $text ) ][ $pid ]        = true;
 				$index['loose'][ self::key( $text, $kind ) ][ $pid ] = true;
 			}
 		}
 
-		$map       = array();
-		$ambiguous = array();
+		$map           = array();
+		$ambiguous     = array();
+		$ambiguous_ids = array();
 		foreach ( $entities as $entity ) {
+			if ( array_key_exists( (int) $entity['id'], $manual ) ) {
+				continue;
+			}
 			$texts = array_filter( array( $entity['name'] ?? '', isset( $entity['slug'] ) ? str_replace( '-', ' ', (string) $entity['slug'] ) : '' ) );
 			$found = 0;
 			$clash = false;
@@ -206,25 +222,29 @@ final class Wintracker_Links {
 			if ( $found ) {
 				$map[ (int) $entity['id'] ] = $found;
 			} elseif ( $clash ) {
-				$ambiguous[] = (string) $entity['name'];
+				$ambiguous[]     = (string) $entity['name'];
+				$ambiguous_ids[] = (int) $entity['id'];
 			}
 		}
 
 		$count = 0;
-		foreach ( $manual as $pid => $value ) {
-			if ( ctype_digit( (string) $value ) && (int) $value > 0 ) {
-				$map[ (int) $value ] = (int) $pid;
+		foreach ( $manual as $id => $pid ) {
+			if ( (int) $pid > 0 ) {
 				$count++;
+				if ( isset( $published[ (int) $pid ] ) ) {
+					$map[ (int) $id ] = (int) $pid;
+				}
 			}
 		}
 		return array(
-			'map'       => $map,
-			'ambiguous' => $ambiguous,
-			'manual'    => $count,
+			'map'           => $map,
+			'ambiguous'     => $ambiguous,
+			'ambiguous_ids' => $ambiguous_ids,
+			'manual'        => $count,
 		);
 	}
 
-	/** Rebuilds the whole map (cron). Keeps the previous map for a kind whose Wintracker list can't be fetched. */
+	/** Rebuilds the whole map. Keeps the previous map for a kind whose Wintracker list can't be fetched. */
 	public static function rebuild() {
 		$types = self::types();
 		if ( ! array_filter( $types ) ) {
@@ -233,8 +253,8 @@ final class Wintracker_Links {
 		if ( function_exists( 'set_time_limit' ) ) {
 			@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 		}
-		$old    = get_option( self::MAP_OPTION, array() );
-		$old    = is_array( $old ) ? $old : array();
+		$old    = self::raw_map();
+		$manual = self::manual();
 		$map    = array();
 		$report = array(
 			'built' => time(),
@@ -250,27 +270,26 @@ final class Wintracker_Links {
 				$report['kinds'][ $kind ] = array( 'error' => true );
 				continue;
 			}
-			$result       = self::match( $kind, $entities, self::posts( $post_type ), self::manual( $post_type ) );
+			$result       = self::match( $kind, $entities, self::posts( $post_type ), self::excluded( $post_type ), $manual[ $kind ] ?? array() );
 			$map[ $kind ] = $result['map'];
-			$linked       = array_flip( array_keys( $result['map'] ) );
 			$unlinked     = array();
 			foreach ( $entities as $e ) {
-				if ( ! isset( $linked[ (int) $e['id'] ] ) && 'game' !== $kind ) {
+				if ( ! isset( $result['map'][ (int) $e['id'] ] ) && 'game' !== $kind ) {
 					$unlinked[] = (string) $e['name']; // games: only the count (there are thousands)
 				}
 			}
 			$report['kinds'][ $kind ] = array(
-				'post_type' => $post_type,
-				'entities'  => count( $entities ),
-				'linked'    => count( $result['map'] ),
-				'manual'    => $result['manual'],
-				'ambiguous' => array_slice( $result['ambiguous'], 0, 50 ),
-				'unlinked'  => array_slice( $unlinked, 0, 200 ),
+				'post_type'     => $post_type,
+				'entities'      => count( $entities ),
+				'linked'        => count( $result['map'] ),
+				'manual'        => $result['manual'],
+				'ambiguous'     => array_slice( $result['ambiguous'], 0, 50 ),
+				'ambiguous_ids' => array_slice( $result['ambiguous_ids'], 0, 1000 ),
+				'unlinked'      => array_slice( $unlinked, 0, 200 ),
 			);
 		}
-		update_option( self::MAP_OPTION, $map, false );
+		self::save_map( $map );
 		update_option( self::REPORT_OPTION, $report, false );
-		self::$map = null;
 	}
 
 	/** Every Wintracker casino, provider or game: id, name, slug. Null when the API can't be reached. */
@@ -280,16 +299,7 @@ final class Wintracker_Links {
 			if ( null === $response ) {
 				return null;
 			}
-			return array_map(
-				static function ( $r ) {
-					return array(
-						'id'   => (int) $r['id'],
-						'name' => (string) $r['name'],
-						'slug' => $r['slug'] ?? null,
-					);
-				},
-				$response['data']
-			);
+			return array_map( array( __CLASS__, 'entity_row' ), $response['data'] );
 		}
 		$games = array();
 		for ( $offset = 0; $offset < 20000; $offset += 100 ) {
@@ -304,16 +314,48 @@ final class Wintracker_Links {
 				return null;
 			}
 			foreach ( $response['data'] as $g ) {
-				$games[] = array(
-					'id'   => (int) $g['id'],
-					'name' => (string) $g['name'],
-				);
+				$games[] = self::entity_row( $g );
 			}
 			if ( count( $response['data'] ) < 100 || count( $games ) >= (int) ( $response['meta']['total'] ?? 0 ) ) {
 				break;
 			}
 		}
 		return $games;
+	}
+
+	/** @param array<string, mixed> $r an API row */
+	private static function entity_row( $r ) {
+		return array(
+			'id'   => (int) $r['id'],
+			'name' => (string) $r['name'],
+			'slug' => isset( $r['slug'] ) ? (string) $r['slug'] : null,
+		);
+	}
+
+	/** One Wintracker item by id (from cached API responses), or null. */
+	public static function entity( $kind, $id ) {
+		$id = (int) $id;
+		if ( 'game' === $kind ) {
+			$r = Wintracker_Client::get(
+				'wins',
+				array(
+					'game'  => $id,
+					'limit' => 1,
+				)
+			);
+			return ! empty( $r['meta']['game']['name'] ) ? array(
+				'id'   => $id,
+				'name' => (string) $r['meta']['game']['name'],
+				'slug' => null,
+			) : null;
+		}
+		$r = Wintracker_Client::get( 'casino' === $kind ? 'casinos' : 'providers' );
+		foreach ( $r ? $r['data'] : array() as $row ) {
+			if ( (int) $row['id'] === $id ) {
+				return self::entity_row( $row );
+			}
+		}
+		return null;
 	}
 
 	/** Published posts of a type: ID, title, slug only. */
@@ -325,23 +367,250 @@ final class Wintracker_Links {
 		);
 	}
 
-	/** @return array<int, string> post id => manual choice, for posts of a type that have one */
-	private static function manual( $post_type ) {
+	/** @return array<int, bool> published posts of a type marked "don't link this page" */
+	private static function excluded( $post_type ) {
+		global $wpdb;
+		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID = m.post_id
+				 WHERE m.meta_key = %s AND m.meta_value = 'none' AND p.post_type = %s AND p.post_status = 'publish'",
+				self::META,
+				$post_type
+			)
+		);
+		return array_fill_keys( array_map( 'intval', $ids ), true );
+	}
+
+	/* ------------------------------------------------------------------ manual choices */
+
+	/** @return array<string, array<int, int>> kind => [ wintracker id => post id, or 0 = never link ] */
+	public static function manual() {
+		$manual = get_option( self::MANUAL_OPTION, array() );
+		return is_array( $manual ) ? $manual : array();
+	}
+
+	/** @return array<string, array<int, int>> */
+	public static function raw_map() {
+		$map = get_option( self::MAP_OPTION, array() );
+		return is_array( $map ) ? $map : array();
+	}
+
+	private static function save_map( array $map ) {
+		update_option( self::MAP_OPTION, $map, false );
+		self::$map = null;
+	}
+
+	private static function is_published( $post_id ) {
+		$post = get_post( (int) $post_id );
+		return $post && 'publish' === $post->post_status;
+	}
+
+	/**
+	 * Where an item stands: state manual (linked by hand), blocked (never link), auto, ambiguous or none, and the post.
+	 *
+	 * @return array{state: string, post: int}
+	 */
+	public static function status( $kind, $id ) {
+		$id     = (int) $id;
+		$manual = self::manual()[ $kind ] ?? array();
+		$map    = self::raw_map()[ $kind ] ?? array();
+		if ( array_key_exists( $id, $manual ) ) {
+			return array(
+				'state' => (int) $manual[ $id ] > 0 ? 'manual' : 'blocked',
+				'post'  => (int) $manual[ $id ],
+			);
+		}
+		if ( isset( $map[ $id ] ) ) {
+			return array(
+				'state' => 'auto',
+				'post'  => (int) $map[ $id ],
+			);
+		}
+		$report = get_option( self::REPORT_OPTION, array() );
+		$amb    = (array) ( $report['kinds'][ $kind ]['ambiguous_ids'] ?? array() );
+		return array(
+			'state' => in_array( $id, array_map( 'intval', $amb ), true ) ? 'ambiguous' : 'none',
+			'post'  => 0,
+		);
+	}
+
+	/**
+	 * Sets an item by hand: a post id (link to it), 0 (never link) or null (back to automatic). One page belongs to
+	 * one item: an item that had this page by hand loses it and goes back to automatic. Applies immediately.
+	 */
+	public static function set_manual( $kind, $id, $value ) {
+		$id    = (int) $id;
+		$all   = self::manual();
+		$list  = $all[ $kind ] ?? array();
+		$freed = array();
+		if ( null === $value ) {
+			unset( $list[ $id ] );
+		} else {
+			$value = max( 0, (int) $value );
+			if ( $value > 0 ) {
+				foreach ( $list as $eid => $pid ) {
+					if ( (int) $pid === $value && (int) $eid !== $id ) {
+						unset( $list[ $eid ] );
+						$freed[] = (int) $eid;
+					}
+				}
+				delete_post_meta( $value, self::META );
+			}
+			$list[ $id ] = $value;
+		}
+		$all[ $kind ] = $list;
+		update_option( self::MANUAL_OPTION, $all, false );
+
+		$map = self::raw_map();
+		$m   = $map[ $kind ] ?? array();
+		unset( $m[ $id ] );
+		if ( null !== $value && $value > 0 ) {
+			foreach ( $m as $eid => $pid ) {
+				if ( (int) $pid === $value ) {
+					unset( $m[ $eid ] ); // the page now belongs to this item only
+				}
+			}
+			if ( self::is_published( $value ) ) {
+				$m[ $id ] = $value;
+			}
+		}
+		$map[ $kind ] = $m;
+		self::save_map( $map );
+
+		foreach ( null === $value ? array_merge( array( $id ), $freed ) : $freed as $eid ) {
+			self::auto_one( $kind, $eid );
+		}
+	}
+
+	/** Re-runs automatic matching for one item (all published posts of the type, one query). */
+	public static function auto_one( $kind, $id ) {
+		$type   = self::types()[ $kind ] ?? '';
+		$entity = '' !== $type ? self::entity( $kind, $id ) : null;
+		$map    = self::raw_map();
+		unset( $map[ $kind ][ (int) $id ] );
+		if ( $entity ) {
+			$manual = self::manual()[ $kind ] ?? array();
+			unset( $manual[ (int) $id ] );
+			$result = self::match( $kind, array( $entity ), self::posts( $type ), self::excluded( $type ), $manual );
+			if ( isset( $result['map'][ (int) $id ] ) ) {
+				$map[ $kind ][ (int) $id ] = $result['map'][ (int) $id ];
+			}
+		}
+		self::save_map( $map );
+	}
+
+	/** "Don't link this page" on or off. */
+	public static function exclude_post( $kind, $post_id, $on ) {
+		$post_id = (int) $post_id;
+		if ( $on ) {
+			update_post_meta( $post_id, self::META, 'none' );
+			$all = self::manual();
+			foreach ( $all[ $kind ] ?? array() as $eid => $pid ) {
+				if ( (int) $pid === $post_id ) {
+					unset( $all[ $kind ][ $eid ] );
+				}
+			}
+			update_option( self::MANUAL_OPTION, $all, false );
+			self::unlink_post( $kind, $post_id );
+		} else {
+			delete_post_meta( $post_id, self::META );
+			$post = get_post( $post_id );
+			if ( $post ) {
+				self::match_post( $post );
+			}
+		}
+	}
+
+	/** Removes a post from the map (unpublished, trashed, renamed or excluded). Manual choices stay. */
+	private static function unlink_post( $kind, $post_id ) {
+		$map = self::raw_map();
+		foreach ( $map[ $kind ] ?? array() as $eid => $pid ) {
+			if ( (int) $pid === (int) $post_id ) {
+				unset( $map[ $kind ][ $eid ] );
+			}
+		}
+		self::save_map( $map );
+	}
+
+	/**
+	 * Matches one newly published or renamed post right away, against cached Wintracker lists (games: a name
+	 * search), so links appear without waiting for a rebuild. Items already linked elsewhere are left alone.
+	 */
+	public static function match_post( $post ) {
+		$kind = self::kind_of( $post->post_type );
+		if ( ! $kind || 'publish' !== $post->post_status || 'none' === get_post_meta( $post->ID, self::META, true ) ) {
+			return;
+		}
+		$manual = self::manual()[ $kind ] ?? array();
+		$chosen = array_keys( array_map( 'intval', $manual ), (int) $post->ID, true );
+		if ( $chosen ) {
+			// Chosen by hand (perhaps while still a draft): link it now that it is published.
+			$map = self::raw_map();
+			foreach ( $chosen as $eid ) {
+				$map[ $kind ][ (int) $eid ] = (int) $post->ID;
+			}
+			self::save_map( $map );
+			return;
+		}
+		if ( 'game' === $kind ) {
+			$words = preg_split( '/[^a-z0-9]+/', strtolower( remove_accents( wp_strip_all_tags( $post->post_title ) ) ), -1, PREG_SPLIT_NO_EMPTY );
+			$words = array_diff( $words, self::stopwords( 'game' ) );
+			$found = $words ? Wintracker_Client::get(
+				'games',
+				array(
+					'q'     => implode( ' ', $words ),
+					'limit' => 20,
+				)
+			) : null;
+		} else {
+			$found = Wintracker_Client::get( 'casino' === $kind ? 'casinos' : 'providers' );
+		}
+		$entities = array_map( array( __CLASS__, 'entity_row' ), $found ? $found['data'] : array() );
+		$result   = self::match(
+			$kind,
+			$entities,
+			array(
+				array(
+					'ID'         => $post->ID,
+					'post_title' => $post->post_title,
+					'post_name'  => $post->post_name,
+				),
+			),
+			array(),
+			$manual
+		);
+		$map = self::raw_map();
+		foreach ( $result['map'] as $eid => $pid ) {
+			if ( ! array_key_exists( $eid, $manual ) && ! isset( $map[ $kind ][ $eid ] ) ) {
+				$map[ $kind ][ $eid ] = (int) $pid;
+			}
+		}
+		self::save_map( $map );
+	}
+
+	/** 1.5.x stored manual links as post meta (a Wintracker id); move them to wintracker_links_manual. */
+	public static function maybe_migrate() {
+		if ( (int) get_option( 'wintracker_links_schema', 1 ) >= 2 ) {
+			return;
+		}
 		global $wpdb;
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT p.ID, m.meta_value FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID = m.post_id
-				 WHERE m.meta_key = %s AND m.meta_value <> '' AND p.post_type = %s AND p.post_status = 'publish'",
-				self::META,
-				$post_type
+				"SELECT p.ID, p.post_type, m.meta_value FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = %s",
+				self::META
 			),
 			ARRAY_A
 		);
-		$out = array();
-		foreach ( $rows as $row ) {
-			$out[ (int) $row['ID'] ] = (string) $row['meta_value'];
+		$all = self::manual();
+		foreach ( (array) $rows as $row ) {
+			$kind = self::kind_of( $row['post_type'] );
+			if ( $kind && ctype_digit( (string) $row['meta_value'] ) && (int) $row['meta_value'] > 0 ) {
+				$all[ $kind ][ (int) $row['meta_value'] ] = (int) $row['ID'];
+				delete_post_meta( (int) $row['ID'], self::META );
+			}
 		}
-		return $out;
+		update_option( self::MANUAL_OPTION, $all, false );
+		update_option( 'wintracker_links_schema', 2 );
 	}
 
 	/* ------------------------------------------------------------------ keeping it current */
@@ -364,21 +633,34 @@ final class Wintracker_Links {
 		return false === $kind ? null : $kind;
 	}
 
-	/** A post of a linked type was published, unpublished or trashed. */
+	/** A post of a linked type was published, unpublished or trashed: update it now, rebuild later. */
 	public static function post_changed( $new, $old, $post ) {
-		if ( $new !== $old && ( 'publish' === $new || 'publish' === $old ) && self::kind_of( $post->post_type ) ) {
-			self::rebuild_soon();
+		$kind = self::kind_of( $post->post_type );
+		if ( ! $kind || $new === $old || ( 'publish' !== $new && 'publish' !== $old ) ) {
+			return;
 		}
+		if ( 'publish' === $new ) {
+			self::match_post( $post );
+		} else {
+			self::unlink_post( $kind, $post->ID );
+		}
+		self::rebuild_soon();
 	}
 
 	public static function post_renamed( $post_id, $after, $before ) {
-		if ( 'publish' === $after->post_status && self::kind_of( $after->post_type )
+		$kind = self::kind_of( $after->post_type );
+		if ( $kind && 'publish' === $after->post_status
 			&& ( $after->post_title !== $before->post_title || $after->post_name !== $before->post_name ) ) {
+			$manual = self::manual()[ $kind ] ?? array();
+			if ( ! in_array( (int) $post_id, array_map( 'intval', $manual ), true ) ) {
+				self::unlink_post( $kind, $post_id );
+				self::match_post( $after );
+			}
 			self::rebuild_soon();
 		}
 	}
 
-	/* ------------------------------------------------------------------ manual matching (edit screen) */
+	/* ------------------------------------------------------------------ edit screen box */
 
 	public static function add_meta_box( $post_type ) {
 		$kind = self::kind_of( $post_type );
@@ -387,9 +669,16 @@ final class Wintracker_Links {
 		}
 	}
 
+	/** The item chosen by hand for a post, or 0. */
+	private static function manual_for_post( $kind, $post_id ) {
+		$id = array_search( (int) $post_id, array_map( 'intval', self::manual()[ $kind ] ?? array() ), true );
+		return false === $id ? 0 : (int) $id;
+	}
+
 	public static function meta_box( $post, $box ) {
 		$kind    = $box['args']['kind'];
-		$value   = (string) get_post_meta( $post->ID, self::META, true );
+		$chosen  = self::manual_for_post( $kind, $post->ID );
+		$value   = 'none' === get_post_meta( $post->ID, self::META, true ) ? 'none' : ( $chosen ? (string) $chosen : '' );
 		$current = self::linked_to( $kind, $post->ID );
 		$name    = $current ? '#' . $current : '';
 		wp_nonce_field( 'wintracker_link_' . $post->ID, 'wintracker_link_nonce' );
@@ -408,13 +697,6 @@ final class Wintracker_Links {
 			echo '<option value="none"' . selected( 'none', $value, false ) . '>' . esc_html__( 'Don\'t link this page', 'wintracker' ) . '</option>';
 			echo '</select>';
 			echo '<p><input type="number" min="1" id="wintracker-link" name="wintracker_link_game" value="' . esc_attr( $is_id ? $value : '' ) . '" placeholder="685" style="width:100%"></p>';
-			echo '<p class="description">' . wp_kses_post(
-				sprintf(
-					/* translators: %s: link to the shortcode builder */
-					__( 'Find a game id with the game search in the %s.', 'wintracker' ),
-					'<a href="' . esc_url( Wintracker_Builder::url() ) . '" target="_blank">' . esc_html__( 'shortcode builder', 'wintracker' ) . '</a>'
-				)
-			) . '</p>';
 		} else {
 			$list = Wintracker_Client::get( 'casino' === $kind ? 'casinos' : 'providers' );
 			$rows = $list ? $list['data'] : array();
@@ -446,12 +728,15 @@ final class Wintracker_Links {
 		} elseif ( 'none' !== $value ) {
 			echo '<p>' . esc_html__( 'Not linked at the moment.', 'wintracker' ) . '</p>';
 		}
+		if ( current_user_can( Wintracker_Links_Editor::CAP ) ) {
+			echo '<p><a href="' . esc_url( Wintracker_Links_Editor::url( $kind ) ) . '">' . esc_html__( 'All links in Wintracker → Links', 'wintracker' ) . '</a></p>';
+		}
 	}
 
 	/** The Wintracker id currently linked to a post (reverse lookup in the map), or 0. */
 	public static function linked_to( $kind, $post_id ) {
-		$map = get_option( self::MAP_OPTION, array() );
-		$id  = is_array( $map ) && isset( $map[ $kind ] ) ? array_search( (int) $post_id, $map[ $kind ], true ) : false;
+		$map = self::raw_map();
+		$id  = isset( $map[ $kind ] ) ? array_search( (int) $post_id, array_map( 'intval', $map[ $kind ] ), true ) : false;
 		return false === $id ? 0 : (int) $id;
 	}
 
@@ -470,35 +755,23 @@ final class Wintracker_Links {
 			$raw   = isset( $_POST['wintracker_link'] ) ? sanitize_text_field( wp_unslash( $_POST['wintracker_link'] ) ) : '';
 			$value = 'none' === $raw ? 'none' : ( ctype_digit( $raw ) && (int) $raw > 0 ? (string) (int) $raw : '' );
 		}
-		$old = (string) get_post_meta( $post_id, self::META, true );
-		if ( $value === $old ) {
+		$chosen = self::manual_for_post( $kind, $post_id );
+		$was    = 'none' === get_post_meta( $post_id, self::META, true ) ? 'none' : ( $chosen ? (string) $chosen : '' );
+		if ( $value === $was ) {
 			return;
 		}
-		if ( '' === $value ) {
-			delete_post_meta( $post_id, self::META );
-		} else {
-			update_post_meta( $post_id, self::META, $value );
-		}
-		self::apply_manual( $kind, (int) $post_id, $value, 'publish' === $post->post_status );
-	}
-
-	/** Puts a manual choice into the map right away; "automatic" waits for the next rebuild. */
-	private static function apply_manual( $kind, $post_id, $value, $published ) {
-		$map = get_option( self::MAP_OPTION, array() );
-		$map = is_array( $map ) ? $map : array();
-		$map[ $kind ] = array_filter(
-			$map[ $kind ] ?? array(),
-			static function ( $pid ) use ( $post_id ) {
-				return (int) $pid !== $post_id;
+		if ( 'none' === $value ) {
+			self::exclude_post( $kind, $post_id, true );
+			foreach ( $chosen ? array( $chosen ) : array() as $eid ) {
+				self::auto_one( $kind, $eid );
 			}
-		);
-		if ( $published && ctype_digit( $value ) ) {
-			$map[ $kind ][ (int) $value ] = $post_id;
-		}
-		update_option( self::MAP_OPTION, $map, false );
-		self::$map = null;
-		if ( '' === $value ) {
-			self::rebuild_soon( 10 );
+		} elseif ( '' === $value ) {
+			if ( $chosen ) {
+				self::set_manual( $kind, $chosen, null );
+			}
+			self::exclude_post( $kind, $post_id, false );
+		} else {
+			self::set_manual( $kind, (int) $value, (int) $post_id );
 		}
 	}
 }
