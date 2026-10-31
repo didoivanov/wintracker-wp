@@ -29,7 +29,7 @@ Keys are created by the Wintracker admin (`php bin/api-key.php create "casinos.e
   so an outage does not slow every page view. Without a snapshot the widget renders nothing.
 - **Wrong arguments** (unknown casino slug, game id) render nothing; logged-in editors see the reason in an HTML
   comment (`<!-- Wintracker: casino_not_found: … -->`) in the page source.
-- **Stylesheet only where needed.** `assets/wintracker.css` (about 3 KB) loads only on pages that show a
+- **Stylesheet only where needed.** `assets/wintracker.css` (about 5 KB, less gzipped) loads only on pages that show a
   widget: in `<head>` for posts with a Wintracker shortcode, otherwise in the footer when the widget renders.
 
 ## Shortcodes
