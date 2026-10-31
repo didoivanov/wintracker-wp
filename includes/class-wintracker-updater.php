@@ -4,7 +4,8 @@
  * update screens (update notice, "View details", one-click update, the auto-update toggle).
  *
  * - The plugin header's "Update URI: https://github.com/didoivanov/wintracker-wp" makes WordPress ask the
- *   update_plugins_github.com filter (WP 5.8+) instead of wordpress.org.
+ *   update_plugins_github.com filter (WP 5.8+) instead of wordpress.org. On WordPress 5.5–5.7 the
+ *   pre_set_site_transient_update_plugins filter does the same job (legacy_check()).
  * - The latest release is fetched from the GitHub API and re-checked every 3 hours ("Check again" on
  *   Dashboard → Updates refreshes it). Releases are created by .github/workflows/release.yml when the
  *   version in wintracker.php changes.
@@ -28,6 +29,11 @@ final class Wintracker_Updater {
 
 	public static function init() {
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'check' ), 10, 3 );
+		// WordPress before 5.8 has no update_plugins_{hostname} filter (nor the Update URI header): add the
+		// result to the update_plugins transient directly.
+		if ( version_compare( get_bloginfo( 'version' ), '5.8', '<' ) ) {
+			add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'legacy_check' ) );
+		}
 		add_filter( 'plugins_api', array( __CLASS__, 'details' ), 10, 3 );
 		add_filter( 'upgrader_source_selection', array( __CLASS__, 'fix_folder' ), 10, 4 );
 		add_filter( 'http_request_args', array( __CLASS__, 'auth' ), 10, 2 );
@@ -70,6 +76,41 @@ final class Wintracker_Updater {
 			'tested'       => get_bloginfo( 'version' ),
 			'icons'        => array(),
 		);
+	}
+
+	/** WordPress < 5.8: puts our entry into the update_plugins transient while WordPress saves it. */
+	public static function legacy_check( $transient ) {
+		if ( ! is_object( $transient ) ) {
+			return $transient;
+		}
+		if ( ! function_exists( 'get_plugin_data' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$file = self::basename();
+		$data = self::check( false, get_plugin_data( WINTRACKER_FILE, false, false ), $file );
+		if ( ! is_array( $data ) ) {
+			return $transient;
+		}
+		$item = (object) array(
+			'id'           => $data['id'],
+			'slug'         => $data['slug'],
+			'plugin'       => $file,
+			'new_version'  => $data['version'],
+			'url'          => $data['url'],
+			'package'      => $data['package'],
+			'requires'     => $data['requires'],
+			'requires_php' => $data['requires_php'],
+			'tested'       => $data['tested'],
+			'icons'        => array(),
+		);
+		if ( version_compare( $data['version'], WINTRACKER_VERSION, '>' ) ) {
+			$transient->response[ $file ] = $item;
+			unset( $transient->no_update[ $file ] );
+		} else {
+			$transient->no_update[ $file ] = $item;
+			unset( $transient->response[ $file ] );
+		}
+		return $transient;
 	}
 
 	/** The latest release: version, url, package, notes, date. Null when GitHub can't be reached. */
