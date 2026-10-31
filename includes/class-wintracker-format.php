@@ -51,10 +51,10 @@ final class Wintracker_Format {
 				$img = $images && ! empty( $win['game']['image_url'] )
 					? '<img class="wintracker__img" src="' . esc_url( $win['game']['image_url'] ) . '" alt="" width="40" height="40" loading="lazy" decoding="async"> '
 					: '';
-				return $img . '<span class="wintracker__game">' . esc_html( $win['game']['name'] ) . '</span>';
+				return $img . '<span class="wintracker__game">' . Wintracker_Links::wrap( 'game', $win['game']['id'] ?? 0, esc_html( $win['game']['name'] ) ) . '</span>';
 			case 'casino':
 			case 'provider':
-				return ! empty( $win[ $column ]['name'] ) ? esc_html( $win[ $column ]['name'] ) : self::none();
+				return ! empty( $win[ $column ]['name'] ) ? Wintracker_Links::wrap( $column, $win[ $column ]['id'] ?? 0, esc_html( $win[ $column ]['name'] ) ) : self::none();
 			case 'player':
 				return null !== ( $win['player'] ?? null ) && '' !== $win['player'] ? esc_html( $win['player'] ) : self::none();
 			case 'bet':
@@ -137,14 +137,14 @@ final class Wintracker_Format {
 			}
 		}
 		if ( 'game' !== $type && ! empty( $win['game']['name'] ) ) {
-			$parts[] = esc_html( $win['game']['name'] );
+			$parts[] = Wintracker_Links::wrap( 'game', $win['game']['id'] ?? 0, esc_html( $win['game']['name'] ) );
 		}
 		if ( 'provider' !== $type && 'last_win' !== $field && ! empty( $win['provider']['name'] ) ) {
-			$parts[] = esc_html( $win['provider']['name'] );
+			$parts[] = Wintracker_Links::wrap( 'provider', $win['provider']['id'] ?? 0, esc_html( $win['provider']['name'] ) );
 		}
 		if ( 'casino' !== $type && ! empty( $win['casino']['name'] ) ) {
 			/* translators: %s: casino name */
-			$parts[] = sprintf( esc_html__( 'at %s', 'wintracker' ), esc_html( $win['casino']['name'] ) );
+			$parts[] = sprintf( esc_html__( 'at %s', 'wintracker' ), Wintracker_Links::wrap( 'casino', $win['casino']['id'] ?? 0, esc_html( $win['casino']['name'] ) ) );
 		}
 		if ( 'last_win' !== $field ) {
 			$parts[] = self::time_ago( $win['won_at'] ?? null );

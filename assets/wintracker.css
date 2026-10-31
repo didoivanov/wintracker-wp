@@ -36,6 +36,13 @@
 	margin-right: .5em;
 }
 .wintracker time { white-space: nowrap; }
+.wintracker__link {
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+}
+.wintracker__link:hover { color: var(--wt-accent); }
 
 /* Table */
 .wintracker__scroll { overflow-x: auto; }

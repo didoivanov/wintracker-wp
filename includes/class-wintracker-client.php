@@ -129,6 +129,35 @@ final class Wintracker_Client {
 	}
 
 	/**
+	 * One API call without the transient cache, for background jobs that page through whole lists
+	 * (the link builder) and must not fill the cache with pages nobody shows.
+	 *
+	 * @return array<string, mixed>|null the decoded response, or null on any failure
+	 */
+	public static function fetch( $endpoint, array $params = array() ) {
+		$api_key = self::api_key();
+		if ( '' === $api_key || ! in_array( $endpoint, self::ENDPOINTS, true ) ) {
+			return null;
+		}
+		$response = wp_remote_get(
+			self::BASE_URL . $endpoint . '.php' . ( $params ? '?' . http_build_query( $params ) : '' ),
+			array(
+				'timeout'    => 20,
+				'headers'    => array(
+					'X-Api-Key' => $api_key,
+					'Accept'    => 'application/json',
+				),
+				'user-agent' => 'Wintracker-WP/' . WINTRACKER_VERSION . '; ' . home_url( '/' ),
+			)
+		);
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return null;
+		}
+		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		return is_array( $body ) && isset( $body['data'] ) && is_array( $body['data'] ) ? $body : null;
+	}
+
+	/**
 	 * Calls the API once without any cache, to check a key.
 	 *
 	 * @return array{ok: bool, message: string}

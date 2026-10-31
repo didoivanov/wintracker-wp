@@ -20,6 +20,8 @@ final class Wintracker_Settings {
 		add_action( 'admin_post_wintracker_test', array( __CLASS__, 'test' ) );
 		add_action( 'admin_post_wintracker_flush', array( __CLASS__, 'flush' ) );
 		add_action( 'admin_post_wintracker_display', array( __CLASS__, 'save_display' ) );
+		add_action( 'admin_post_wintracker_links', array( __CLASS__, 'save_links' ) );
+		add_action( 'admin_post_wintracker_links_rebuild', array( __CLASS__, 'rebuild_links' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WINTRACKER_FILE ), array( __CLASS__, 'action_link' ) );
 	}
 
@@ -127,6 +129,8 @@ final class Wintracker_Settings {
 				<?php submit_button( __( 'Save display defaults', 'wintracker' ) ); ?>
 			</form>
 
+			<?php self::links_section(); ?>
+
 			<h2><?php esc_html_e( 'Connection and cache', 'wintracker' ); ?></h2>
 			<p><?php esc_html_e( 'Responses are cached for 60 seconds. The last good response of each widget is kept for 7 days and shown while the API is down.', 'wintracker' ); ?></p>
 			<p>
@@ -188,6 +192,105 @@ final class Wintracker_Settings {
 		self::guard( 'wintracker_test' );
 		$test = Wintracker_Client::test( Wintracker_Client::api_key() );
 		self::done( $test['ok'] ? 'success' : 'error', $test['message'] );
+	}
+
+	private static function links_section() {
+		$types  = Wintracker_Links::types();
+		$report = get_option( Wintracker_Links::REPORT_OPTION, array() );
+		$labels = array(
+			'casino'   => __( 'Link casinos to', 'wintracker' ),
+			'provider' => __( 'Link providers to', 'wintracker' ),
+			'game'     => __( 'Link games to', 'wintracker' ),
+		);
+		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+		unset( $post_types['attachment'] );
+		?>
+		<h2 id="links"><?php esc_html_e( 'Links to your pages', 'wintracker' ); ?></h2>
+		<p><?php esc_html_e( 'Optional. Game, casino and provider names in the widgets link to your own review pages when one matches by name or slug (for example "Bizzo Casino Review" for Bizzo Casino). Matching runs in the background after saving, daily, and shortly after a page of that type is published or renamed. To fix or force a match, use the Wintracker box on the page\'s edit screen.', 'wintracker' ); ?></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="wintracker_links">
+			<?php wp_nonce_field( 'wintracker_links' ); ?>
+			<table class="form-table" role="presentation">
+				<?php foreach ( Wintracker_Links::KINDS as $kind ) : ?>
+					<tr>
+						<th scope="row"><label for="wintracker-link-<?php echo esc_attr( $kind ); ?>"><?php echo esc_html( $labels[ $kind ] ); ?></label></th>
+						<td>
+							<select id="wintracker-link-<?php echo esc_attr( $kind ); ?>" name="link_types[<?php echo esc_attr( $kind ); ?>]">
+								<option value=""><?php esc_html_e( '— Don\'t link —', 'wintracker' ); ?></option>
+								<?php foreach ( $post_types as $pt ) : ?>
+									<option value="<?php echo esc_attr( $pt->name ); ?>" <?php selected( $types[ $kind ], $pt->name ); ?>><?php echo esc_html( $pt->labels->name . ' (' . $pt->name . ')' ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<?php
+							$r = $report['kinds'][ $kind ] ?? null;
+							if ( $types[ $kind ] && $r && ( $r['post_type'] ?? '' ) === $types[ $kind ] ) :
+								?>
+								<p class="description">
+									<?php
+									/* translators: 1: linked count, 2: total count, 3: manual matches */
+									printf( esc_html__( '%1$s of %2$s linked (%3$s set by hand).', 'wintracker' ), esc_html( number_format_i18n( $r['linked'] ) ), esc_html( number_format_i18n( $r['entities'] ) ), esc_html( number_format_i18n( $r['manual'] ) ) );
+									?>
+								</p>
+								<?php if ( ! empty( $r['ambiguous'] ) ) : ?>
+									<p class="description"><?php esc_html_e( 'Several pages match, so not linked (pick one in its edit screen):', 'wintracker' ); ?> <?php echo esc_html( implode( ', ', $r['ambiguous'] ) ); ?></p>
+								<?php endif; ?>
+								<?php if ( ! empty( $r['unlinked'] ) ) : ?>
+									<details><summary><?php esc_html_e( 'Not linked', 'wintracker' ); ?> (<?php echo esc_html( number_format_i18n( count( $r['unlinked'] ) ) ); ?>)</summary><p><?php echo esc_html( implode( ', ', $r['unlinked'] ) ); ?></p></details>
+								<?php endif; ?>
+							<?php elseif ( $types[ $kind ] && $r && ! empty( $r['error'] ) ) : ?>
+								<p class="description"><?php esc_html_e( 'The Wintracker list could not be loaded at the last run; the previous links are kept.', 'wintracker' ); ?></p>
+							<?php endif; ?>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+			</table>
+			<p>
+				<?php submit_button( __( 'Save links', 'wintracker' ), 'primary', 'submit', false ); ?>
+				<?php if ( Wintracker_Links::enabled() ) : ?>
+					<span class="description" style="margin-left:8px">
+						<?php
+						if ( ! empty( $report['built'] ) ) {
+							/* translators: %s: time ago, e.g. "5 mins" */
+							printf( esc_html__( 'Last matched %s ago.', 'wintracker' ), esc_html( human_time_diff( (int) $report['built'], time() ) ) );
+						} else {
+							esc_html_e( 'Not matched yet.', 'wintracker' );
+						}
+						if ( wp_next_scheduled( Wintracker_Links::CRON_SOON ) ) {
+							echo ' ' . esc_html__( 'Matching is scheduled and runs within a few minutes.', 'wintracker' );
+						}
+						?>
+					</span>
+				<?php endif; ?>
+			</p>
+		</form>
+		<?php if ( Wintracker_Links::enabled() ) : ?>
+			<p><?php self::button( 'wintracker_links_rebuild', __( 'Rebuild links now', 'wintracker' ) ); ?></p>
+		<?php endif; ?>
+		<?php
+	}
+
+	public static function save_links() {
+		self::guard( 'wintracker_links' );
+		$posted = isset( $_POST['link_types'] ) && is_array( $_POST['link_types'] ) ? wp_unslash( $_POST['link_types'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sanitized in save_types()
+		$types  = Wintracker_Links::save_types( array_map( 'strval', $posted ) );
+		if ( ! array_filter( $types ) ) {
+			self::done( 'success', __( 'Links turned off.', 'wintracker' ) );
+		}
+		self::start_rebuild();
+		self::done( 'success', __( 'Saved. Matching runs in the background; reload this page in a minute to see the results.', 'wintracker' ) );
+	}
+
+	public static function rebuild_links() {
+		self::guard( 'wintracker_links_rebuild' );
+		self::start_rebuild();
+		self::done( 'success', __( 'Matching started in the background; reload this page in a minute to see the results.', 'wintracker' ) );
+	}
+
+	private static function start_rebuild() {
+		wp_clear_scheduled_hook( Wintracker_Links::CRON_SOON );
+		Wintracker_Links::rebuild_soon( 0 );
+		Wintracker_Links::schedule_daily();
+		spawn_cron();
 	}
 
 	public static function save_display() {

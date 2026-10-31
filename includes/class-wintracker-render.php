@@ -98,6 +98,7 @@ final class Wintracker_Render {
 			);
 			$columns = $columns ? $columns : $display['columns'];
 		}
+		Wintracker_Links::prime( $data['wins'] );
 		$images = strtolower( trim( (string) $args['images'] ) );
 		$images = '' === $images ? $display['images'] : ! in_array( $images, array( 'no', 'false', '0', 'off' ), true );
 
@@ -150,7 +151,9 @@ final class Wintracker_Render {
 		$mode    = in_array( $args['details'], array( 'inline', 'tooltip', 'none' ), true ) ? $args['details'] : 'inline';
 		$details = array();
 		if ( 'none' !== $mode ) {
-			foreach ( Wintracker_Data::stat_details( $type, $row, $fields ) as $field => $win ) {
+			$wins = Wintracker_Data::stat_details( $type, $row, $fields );
+			Wintracker_Links::prime( array_values( $wins ) );
+			foreach ( $wins as $field => $win ) {
 				$html = Wintracker_Format::stat_detail( $field, $win, $type );
 				if ( '' !== $html ) {
 					$details[ $field ] = $html;
