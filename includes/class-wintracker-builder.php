@@ -341,6 +341,8 @@ final class Wintracker_Builder {
 				array( 'groups', __( 'Where the bars split, any of 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000', 'wintracker' ), '2,10,50,100,500' ),
 				array( 'highlight', __( 'Bars from this multiplier up are highlighted and summed in the note', 'wintracker' ), '100' ),
 				array( 'note', 'yes, no', 'yes' ),
+				array( 'counts', __( 'Number of wins under each range: yes, no', 'wintracker' ), 'yes' ),
+				array( 'collapse', __( 'Merge empty ranges at the top end into one ("50×+"): yes, no', 'wintracker' ), 'yes' ),
 				array( 'title, heading, class, empty', __( 'As for wins.', 'wintracker' ), '' ),
 			),
 			array( __( 'Attribute', 'wintracker' ), __( 'Values', 'wintracker' ), __( 'Default', 'wintracker' ) )

@@ -112,6 +112,8 @@ wins with a known bet per multiplier range (under 2×, 2–10×, 10–50×, 50�
 | `groups`                       | where the bars split, any of 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000 | `2,10,50,100,500` |
 | `highlight`                    | bars from this multiplier up are highlighted and summed in the note | `100` |
 | `note`                         | `yes`, `no`                                                     | `yes`   |
+| `counts`                       | number of wins under each range label: `yes`, `no`              | `yes`   |
+| `collapse`                     | merge empty ranges at the top end into one ("50×+"): `yes`, `no` | `yes`   |
 | `title`, `heading`, `class`, `empty` | as for wins                                               |         |
 
 Colours: `--wt-bar` and `--wt-bar-hot` (custom properties). The figures are cached for 10 minutes.

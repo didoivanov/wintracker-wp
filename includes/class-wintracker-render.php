@@ -65,6 +65,8 @@ final class Wintracker_Render {
 			'groups'    => '2,10,50,100,500', // where the bars split; any of 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000
 			'highlight' => 100,           // bars from this multiplier up are highlighted and summed in the note
 			'note'      => 'yes',         // the line under the chart: yes | no
+			'counts'    => 'yes',         // number of wins under each range label: yes | no
+			'collapse'  => 'yes',         // merge empty ranges at the top end into one ("50×+"): yes | no
 			'title'     => '',
 			'heading'   => 'h3',
 			'empty'     => __( 'No multipliers recorded yet.', 'wintracker' ), // "" hides the widget
@@ -112,16 +114,30 @@ final class Wintracker_Render {
 				}
 			}
 			$bars[] = array(
-				'label' => self::multiplier_label( $from, $to ),
+				'from'  => $from,
 				'wins'  => $wins,
 				'hot'   => null !== $from && $from >= $hot,
 			);
 			$from = $to;
 		}
+		// Empty ranges at the top end say the same thing three times: merge them into one ("50×+", 0 wins).
+		if ( ! in_array( strtolower( (string) $args['collapse'] ), array( 'no', 'false', '0', 'off' ), true ) ) {
+			while ( count( $bars ) > 2 && 0 === $bars[ count( $bars ) - 1 ]['wins'] && 0 === $bars[ count( $bars ) - 2 ]['wins'] ) {
+				array_pop( $bars );
+			}
+		}
+		foreach ( $bars as $i => &$bar ) {
+			$next         = isset( $bars[ $i + 1 ] ) ? $bars[ $i + 1 ]['from'] : null;
+			$bar['label'] = self::multiplier_label( $bar['from'], $next );
+		}
+		unset( $bar );
 		$max     = max( 1, max( array_column( $bars, 'wins' ) ) );
 		$hot_sum = array_sum( array_column( array_filter( $bars, static function ( $b ) { return $b['hot']; } ), 'wins' ) );
 		foreach ( $bars as &$bar ) {
 			$bar['share']  = Wintracker_Format::share( $bar['wins'], $data['total'] );
+			$bar['zero']   = 0 === $bar['wins'];
+			/* translators: %s: number of wins */
+			$bar['count']  = sprintf( _n( '%s win', '%s wins', $bar['wins'], 'wintracker' ), number_format_i18n( $bar['wins'] ) );
 			$bar['height'] = round( $bar['wins'] / $max * 100, 2 );
 		}
 		unset( $bar );
@@ -133,6 +149,8 @@ final class Wintracker_Render {
 				'bars'      => $bars,
 				'total'     => $data['total'],
 				'hot_share' => Wintracker_Format::share( $hot_sum, $data['total'] ),
+				'hot_wins'  => $hot_sum,
+				'counts'    => ! in_array( strtolower( (string) $args['counts'] ), array( 'no', 'false', '0', 'off' ), true ),
 				'highlight' => $hot,
 				'note'      => ! in_array( strtolower( (string) $args['note'] ), array( 'no', 'false', '0', 'off' ), true ),
 				'empty'     => (string) $args['empty'],
@@ -290,6 +308,18 @@ final class Wintracker_Render {
 	private static function pick( $list, array $allowed ) {
 		$keys = array_map( 'trim', explode( ',', strtolower( (string) $list ) ) );
 		return array_values( array_unique( array_intersect( $keys, $allowed ) ) );
+	}
+
+	/** Prints a template part (theme override in <theme>/wintracker/<name>.php first) with the given variables. */
+	public static function partial( $name, array $vars ) {
+		$file = locate_template( array( 'wintracker/' . $name . '.php' ) );
+		$file = $file ? $file : WINTRACKER_DIR . 'templates/' . $name . '.php';
+		if ( is_readable( $file ) ) {
+			( static function ( $__file, $__vars ) {
+				extract( $__vars, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract
+				include $__file;
+			} )( $file, $vars );
+		}
 	}
 
 	private static function template( $name, array $vars, array $classes, array $args ) {
