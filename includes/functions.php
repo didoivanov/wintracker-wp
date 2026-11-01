@@ -51,3 +51,32 @@ function wintracker_get_stats( $type, $id ) {
 function wintracker_enqueue_style() {
 	Wintracker_Assets::enqueue();
 }
+
+/**
+ * The Wintracker id a page is linked to (Wintracker → Links), or 0.
+ *
+ *     $game_id = wintracker_linked_id();            // the current post, kind from its post type
+ *     $game_id = wintracker_linked_id( 'game', 42 ); // a given post
+ *
+ * @param string               $kind casino | provider | game; '' = the kind linked to the post's type
+ * @param int|WP_Post|null     $post defaults to the current post
+ */
+function wintracker_linked_id( $kind = '', $post = null ) {
+	$post = get_post( $post );
+	if ( ! $post || 'publish' !== $post->post_status ) {
+		return 0;
+	}
+	$kind = '' !== $kind ? $kind : (string) Wintracker_Links::kind_of( $post->post_type );
+	if ( ! in_array( $kind, Wintracker_Links::KINDS, true ) ) {
+		return 0;
+	}
+	return Wintracker_Links::linked_to( $kind, $post->ID );
+}
+
+/**
+ * True when widget HTML shows nothing to visitors: empty, or only the HTML comment editors get when there is no
+ * data (API down with no saved copy, unknown id). Use it to leave out a whole section around a widget.
+ */
+function wintracker_is_empty( $html ) {
+	return '' === trim( (string) preg_replace( '/<!--.*?-->/s', '', (string) $html ) );
+}

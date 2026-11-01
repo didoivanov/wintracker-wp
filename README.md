@@ -153,6 +153,33 @@ add_action( 'wp_enqueue_scripts', function () {
 } );
 ```
 
+### In a theme template, only when the page is linked
+
+`wintracker_linked_id()` gives the Wintracker id the current page is linked to (Wintracker → Links), or 0;
+`wintracker_is_empty( $html )` tells whether a widget would show visitors nothing. Together they let a template add
+a whole section only when there is something to show:
+
+```php
+<?php
+if ( function_exists( 'wintracker_linked_id' ) ) :          // plugin active
+	$wt_game_id = wintracker_linked_id( 'game' );           // 0 when this page isn't linked
+	if ( $wt_game_id ) :
+		$wt_html = wintracker_latest_wins( array( 'game' => $wt_game_id, 'limit' => 10, 'empty' => '' ) );
+		if ( ! wintracker_is_empty( $wt_html ) ) :          // no wins / API down with no saved copy
+			?>
+			<section class="slot-wintracker">
+				<h2><?php printf( esc_html__( 'Recent %s winnings at casinos we scan', 'your-theme' ), esc_html( get_the_title() ) ); ?></h2>
+				<?php echo $wt_html; ?>
+			</section>
+			<?php
+		endif;
+	endif;
+endif;
+```
+
+The same works on casino and provider pages with `wintracker_linked_id( 'casino' )` / `( 'provider' )` and the
+`casino` / `provider` argument, and with `wintracker_stats()`.
+
 ## Finding slugs and ids
 
 The widgets take Wintracker's own identifiers:
