@@ -16,6 +16,7 @@
 		multipliers: 'wintracker_top_multipliers',
 		stats: 'wintracker_stats',
 		distribution: 'wintracker_multipliers',
+		grid: 'wintracker_games',
 	};
 	var FUNCS = {
 		latest: 'wintracker_latest_wins',
@@ -23,6 +24,7 @@
 		multipliers: 'wintracker_top_multipliers',
 		stats: 'wintracker_stats',
 		distribution: 'wintracker_multipliers',
+		grid: 'wintracker_games',
 	};
 	/** Widgets about one casino, provider or game (pick one), rather than a filtered list of wins. */
 	var SINGLE = { stats: true, distribution: true };
@@ -61,7 +63,26 @@
 			}
 		};
 
-		if ( widget === 'distribution' ) {
+		if ( widget === 'grid' ) {
+			if ( value( 'grid_period' ) !== 'all' ) {
+				add( 'period', value( 'grid_period' ) );
+			}
+			var glimit = parseInt( value( 'grid_limit' ), 10 ) || 12;
+			if ( glimit !== 12 ) {
+				add( 'limit', Math.max( 1, glimit ) );
+			}
+			var gmore = parseInt( value( 'grid_more' ), 10 );
+			if ( ! isNaN( gmore ) && gmore !== 12 ) {
+				add( 'more', Math.max( 0, gmore ) );
+			}
+			add( 'rank', value( 'grid_rank' ) );
+			if ( value( 'grid_image' ) !== 'featured' ) {
+				add( 'image', value( 'grid_image' ) );
+			}
+			if ( value( 'grid_currency' ) !== 'eur' ) {
+				add( 'currency', value( 'grid_currency' ) );
+			}
+		} else if ( widget === 'distribution' ) {
 			var dtype = value( 'stats_type' );
 			add( dtype, value( dtype ) );
 			if ( value( 'dist_layout' ) !== 'columns' ) {
@@ -134,13 +155,13 @@
 	function toggle() {
 		var widget = value( 'widget' );
 		var isStats = !! SINGLE[ widget ];
-		var mode = isStats ? widget : 'wins';
+		var mode = isStats || widget === 'grid' ? widget : 'wins';
 		var type = value( 'stats_type' );
 		form.querySelectorAll( '[data-show]' ).forEach( function ( el ) {
 			el.hidden = el.getAttribute( 'data-show' ).split( ' ' ).indexOf( mode ) === -1;
 		} );
 		[ 'casino', 'provider', 'game' ].forEach( function ( f ) {
-			form.querySelector( '[data-for="' + f + '"]' ).hidden = isStats && type !== f;
+			form.querySelector( '[data-for="' + f + '"]' ).hidden = widget === 'grid' || ( isStats && type !== f );
 		} );
 		$( 'wtb-columns' ).hidden = $( 'wtb-columns-auto' ).checked;
 		$( 'wtb-fields' ).hidden = $( 'wtb-fields-auto' ).checked;

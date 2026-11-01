@@ -72,6 +72,32 @@ final class Wintracker_Format {
 		return '';
 	}
 
+	/**
+	 * The details of one win as label/value rows, for the slots grid tooltips: win (and its EUR value when the
+	 * casino's currency differs), bet, multiplier, casino, when.
+	 *
+	 * @param array<string, mixed> $win a win from the API
+	 */
+	public static function win_tip( array $win ) {
+		$rows = array();
+		if ( ! empty( $win['win'] ) ) {
+			$value = self::money( $win['win']['amount'], $win['win']['currency'] );
+			if ( isset( $win['win_eur'] ) && 'EUR' !== strtoupper( (string) $win['win']['currency'] ) ) {
+				$value .= ' <span class="wintracker__tip-sub">(' . self::money( $win['win_eur'], 'EUR' ) . ')</span>';
+			}
+			$rows['win'] = $value;
+		}
+		$rows['bet']        = ! empty( $win['bet'] ) ? self::money( $win['bet']['amount'], $win['bet']['currency'] ) : self::none();
+		$rows['multiplier'] = self::multiplier( $win['multiplier'] ?? null );
+		$rows['casino']     = ! empty( $win['casino']['name'] ) ? esc_html( $win['casino']['name'] ) : self::none();
+		$rows['time']       = self::time_ago( $win['won_at'] ?? null );
+		$html = '';
+		foreach ( $rows as $key => $value ) {
+			$html .= '<dt>' . self::label( $key ) . '</dt><dd class="wintracker__tip-' . esc_attr( $key ) . '">' . $value . '</dd>';
+		}
+		return '<dl>' . $html . '</dl>';
+	}
+
 	/** A share of a total the way the multiplier chart shows it: "53%", "2.3%", "<0.1%", "0%". */
 	public static function share( $n, $total ) {
 		if ( $total <= 0 || $n <= 0 ) {
@@ -186,7 +212,8 @@ final class Wintracker_Format {
 		$currency = strtoupper( (string) $currency );
 		if ( null === $decimals ) {
 			$abs      = abs( $amount );
-			$decimals = $abs > 0 && $abs < 1 ? min( 8, (int) ceil( -log10( $abs ) ) + 2 ) : 2;
+			// Cents need 2 decimals (€0.40, not €0.400); only amounts finer than a cent (crypto) get more.
+			$decimals = $abs > 0 && $abs < 1 && abs( round( $abs, 2 ) - $abs ) > 1e-9 ? min( 8, (int) ceil( -log10( $abs ) ) + 2 ) : 2;
 		}
 		$text = null;
 		if ( class_exists( 'NumberFormatter' ) && preg_match( '/^[A-Z]{3}$/', $currency ) ) {

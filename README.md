@@ -54,6 +54,7 @@ shortcode or the PHP call. The same page has a reference of every shortcode and 
 | `[wintracker_wins sort="…"]`   | any of the above, `sort` = `latest`, `amount` or `multiplier`         |
 | `[wintracker_stats]`           | all-time stats of one casino, provider or game              |
 | `[wintracker_multipliers]`     | chart: share of wins per multiplier range, all time, of one casino, provider or game |
+| `[wintracker_games]`           | slots grid: every game you have a page for, biggest win first, with tooltips |
 
 ### Wins attributes
 
@@ -118,6 +119,25 @@ wins with a known bet per multiplier range (under 2×, 2–10×, 10–50×, 50�
 
 Colours: `--wt-bar` and `--wt-bar-hot` (custom properties). The figures are cached for 10 minutes.
 
+### Slots grid attributes
+
+`[wintracker_games]` shows a card for every game that is linked to one of your pages (Wintracker → Links) and has a
+win in the period, biggest win first: your page's featured image, its title, the provider, the biggest win and the
+last win. The card links to your page; hovering, focusing or tapping "Biggest win" / "Last win" shows the win's
+amount, bet, multiplier, casino and time. Needs `games.php?…&with=wins` on the API (Wintracker, November 2026).
+
+| Attribute  | Values                                                              | Default |
+|------------|---------------------------------------------------------------------|---------|
+| `period`   | biggest win of: `all`, `month`, `week`, `day`                       | `all`   |
+| `limit`    | cards shown at first                                                | `12`    |
+| `more`     | cards each "Show more" adds; `0`: no button, only the first `limit` | `12`    |
+| `rank`     | `#1`, `#2` … badges: `yes`, `no`                                    | `yes`   |
+| `image`    | `featured` (your page's featured image, else Wintracker's), `wintracker` | `featured` |
+| `currency` | `eur` (comparable across casinos), `original`                       | `eur`   |
+| `title`, `heading`, `class`, `empty` | as for wins (`empty` defaults to showing nothing)     |         |
+
+One API request per 100 linked games, cached 10 minutes; the pages and featured images are loaded in two queries.
+
 ### Examples
 
 Casino review page:
@@ -163,6 +183,7 @@ Raw data for custom markup (cached the same way, `null` when unavailable):
 $data  = wintracker_get_wins( array( 'casino' => 'bizzo', 'sort' => 'amount', 'period' => 'week' ) ); // ['wins' => [...], 'meta' => [...]]
 $stats = wintracker_get_stats( 'game', 685 ); // wins, total_won_eur, biggest_win_eur, top_multiplier, last_win_at, rtp, …
 $bands = wintracker_get_multipliers( 'game', 717 ); // total, bands: [ from, to, wins ] × 11
+echo wintracker_games( array( 'period' => 'month', 'limit' => 8 ) ); // the slots grid
 ```
 
 Templates that call these functions get the stylesheet in the footer. To load it in `<head>` instead:

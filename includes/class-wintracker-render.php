@@ -74,6 +74,114 @@ final class Wintracker_Render {
 		);
 	}
 
+	public static function games_defaults() {
+		return array(
+			'period'   => 'all',      // biggest win of: day | week | month | all
+			'limit'    => 12,         // games shown at first
+			'more'     => 12,         // games each "Show more" adds; 0: no button (only the first `limit`)
+			'rank'     => 'yes',      // #1, #2 … on the images: yes | no
+			'image'    => 'featured', // featured (the page's featured image, else Wintracker's) | wintracker
+			'currency' => 'eur',      // biggest / last win shown in: eur | original
+			'title'    => '',
+			'heading'  => 'h3',
+			'empty'    => '',         // text when no linked game has a win (in the period); "" shows nothing
+			'class'    => '',
+		);
+	}
+
+	/**
+	 * Every game the site has a page for, biggest win first: image, name and provider, biggest win and last win
+	 * (with their details as tooltips), each card linking to the game's page.
+	 *
+	 * @param array<string, mixed> $args see games_defaults()
+	 */
+	public static function games_grid( array $args ) {
+		$args  = array_merge( self::games_defaults(), array_change_key_case( $args, CASE_LOWER ) );
+		$games = Wintracker_Data::linked_games( (string) $args['period'] );
+		if ( null === $games ) {
+			return self::unavailable();
+		}
+		if ( ! $games && '' === (string) $args['empty'] ) {
+			return self::comment( __( 'Wintracker games grid: no game page is linked (Wintracker → Links), or none has a win in this period.', 'wintracker' ) );
+		}
+		$limit = max( 1, (int) $args['limit'] );
+		$more  = max( 0, (int) $args['more'] );
+		if ( ! $more ) {
+			$games = array_slice( $games, 0, $limit );
+		}
+
+		// The pages and their featured images in two queries.
+		$post_ids = array_column( $games, 'post' );
+		if ( $post_ids && class_exists( 'WP_Query' ) ) {
+			$query = new WP_Query(
+				array(
+					'post__in'               => $post_ids,
+					'post_type'              => 'any',
+					'posts_per_page'         => count( $post_ids ),
+					'no_found_rows'          => true,
+					'ignore_sticky_posts'    => true,
+					'update_post_term_cache' => false,
+				)
+			);
+			if ( function_exists( 'update_post_thumbnail_cache' ) ) {
+				update_post_thumbnail_cache( $query );
+			}
+		}
+
+		$items = array();
+		foreach ( $games as $i => $row ) {
+			$post = get_post( $row['post'] );
+			if ( ! $post ) {
+				continue;
+			}
+			$game  = $row['game'];
+			$image = '';
+			if ( 'wintracker' !== $args['image'] && has_post_thumbnail( $post ) ) {
+				$image = wp_get_attachment_image(
+					get_post_thumbnail_id( $post ),
+					'medium_large',
+					false,
+					array(
+						'class'   => 'wintracker__gg-img',
+						'alt'     => '',
+						'loading' => 'lazy',
+						'sizes'   => '(max-width: 600px) 50vw, 280px',
+					)
+				);
+			}
+			if ( '' === $image && ! empty( $game['image_url'] ) ) {
+				$image = '<img class="wintracker__gg-img" src="' . esc_url( $game['image_url'] ) . '" alt="" loading="lazy" decoding="async">';
+			}
+			$items[] = array(
+				'rank'     => $i + 1,
+				'url'      => get_permalink( $post ),
+				'name'     => get_the_title( $post ),
+				'provider' => $game['provider'] ?? null,
+				'image'    => $image,
+				'biggest'  => $game['biggest_win'],
+				'last'     => $game['last_win'] ?? null,
+				'hidden'   => $i >= $limit,
+			);
+		}
+		if ( $more && count( $items ) > $limit ) {
+			wp_enqueue_script( 'wintracker-grid', plugins_url( 'assets/wintracker-grid.js', WINTRACKER_FILE ), array(), WINTRACKER_VERSION, true );
+		}
+
+		return self::template(
+			'games-grid',
+			array(
+				'items'    => $items,
+				'more'     => $more,
+				'rank'     => ! in_array( strtolower( (string) $args['rank'] ), array( 'no', 'false', '0', 'off' ), true ),
+				'currency' => 'original' === $args['currency'] ? 'original' : 'eur',
+				'empty'    => (string) $args['empty'],
+				'args'     => $args,
+			),
+			array( 'wintracker--games-grid', 'wintracker--period-' . sanitize_html_class( (string) $args['period'] ) ),
+			$args
+		);
+	}
+
 	/** Band edges the API counts by (WinStats::MULTIPLIER_BANDS on the Wintracker side). */
 	const MULTIPLIER_EDGES = array( 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000 );
 

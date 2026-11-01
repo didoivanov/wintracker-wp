@@ -20,7 +20,10 @@ final class Wintracker_Client {
 	const ENDPOINTS = array( 'wins', 'casinos', 'providers', 'games', 'multipliers' );
 
 	/** Seconds a fresh response is kept, per endpoint (all-time figures change slowly). */
-	const TTL = array( 'multipliers' => 600 );
+	const TTL = array(
+		'multipliers' => 600,
+		'games'       => 600,
+	);
 	const PREFIX    = 'wintracker_';
 
 	/** @var array{code: string, message: string}|null the last error, for an HTML comment shown to editors */

@@ -106,6 +106,7 @@ final class Wintracker_Builder {
 							'multipliers' => array( __( 'Top multipliers', 'wintracker' ), __( 'Highest win ÷ bet', 'wintracker' ) ),
 							'stats'       => array( __( 'Stats card', 'wintracker' ), __( 'All-time figures of a casino, provider or game', 'wintracker' ) ),
 							'distribution' => array( __( 'Multiplier chart', 'wintracker' ), __( 'Share of wins per multiplier range, all time', 'wintracker' ) ),
+							'grid'         => array( __( 'Slots grid', 'wintracker' ), __( 'Every game you have a page for, biggest win first', 'wintracker' ) ),
 						);
 						foreach ( $widgets as $value => $label ) :
 							?>
@@ -123,7 +124,7 @@ final class Wintracker_Builder {
 						<label><input type="radio" name="stats_type" value="game"> <?php esc_html_e( 'Game', 'wintracker' ); ?></label>
 					</fieldset>
 
-					<fieldset>
+					<fieldset data-show="wins stats distribution">
 						<legend data-show="wins"><?php esc_html_e( 'Filter (optional, combine as you like)', 'wintracker' ); ?></legend>
 						<p class="wtb-field" data-for="casino">
 							<label for="wtb-casino"><?php esc_html_e( 'Casino', 'wintracker' ); ?></label>
@@ -154,6 +155,45 @@ final class Wintracker_Builder {
 								<p class="wtb-game-picked" id="wtb-game-picked" hidden><span></span> <button type="button" class="button-link" id="wtb-game-clear"><?php esc_html_e( 'Remove', 'wintracker' ); ?></button></p>
 							</div>
 						</div>
+					</fieldset>
+
+					<fieldset data-show="grid">
+						<legend><?php esc_html_e( 'Slots grid', 'wintracker' ); ?></legend>
+						<p class="description"><?php esc_html_e( 'Shows every game linked to one of your pages (Wintracker → Links) that has a win in the period, biggest win first. Each card links to your page.', 'wintracker' ); ?></p>
+						<p class="wtb-field">
+							<label for="wtb-grid-period"><?php esc_html_e( 'Biggest win of', 'wintracker' ); ?></label>
+							<select id="wtb-grid-period" name="grid_period">
+								<option value="all"><?php esc_html_e( 'All time', 'wintracker' ); ?></option>
+								<option value="month"><?php esc_html_e( 'Last 30 days', 'wintracker' ); ?></option>
+								<option value="week"><?php esc_html_e( 'Last 7 days', 'wintracker' ); ?></option>
+								<option value="day"><?php esc_html_e( 'Last 24 hours', 'wintracker' ); ?></option>
+							</select>
+						</p>
+						<p class="wtb-field">
+							<label for="wtb-grid-limit"><?php esc_html_e( 'Games shown at first', 'wintracker' ); ?></label>
+							<input type="number" id="wtb-grid-limit" name="grid_limit" min="1" max="200" value="12">
+						</p>
+						<p class="wtb-field">
+							<label for="wtb-grid-more"><?php esc_html_e( '"Show more" adds (0: no button)', 'wintracker' ); ?></label>
+							<input type="number" id="wtb-grid-more" name="grid_more" min="0" max="200" value="12">
+						</p>
+						<p class="wtb-field">
+							<label for="wtb-grid-image"><?php esc_html_e( 'Image', 'wintracker' ); ?></label>
+							<select id="wtb-grid-image" name="grid_image">
+								<option value="featured"><?php esc_html_e( 'Your page\'s featured image (else Wintracker\'s)', 'wintracker' ); ?></option>
+								<option value="wintracker"><?php esc_html_e( 'Wintracker\'s game image', 'wintracker' ); ?></option>
+							</select>
+						</p>
+						<p class="wtb-field">
+							<label for="wtb-grid-currency"><?php esc_html_e( 'Amounts in', 'wintracker' ); ?></label>
+							<select id="wtb-grid-currency" name="grid_currency">
+								<option value="eur"><?php esc_html_e( 'Euro (comparable)', 'wintracker' ); ?></option>
+								<option value="original"><?php esc_html_e( 'The casino\'s currency', 'wintracker' ); ?></option>
+							</select>
+						</p>
+						<p class="wtb-field">
+							<label><input type="checkbox" name="grid_rank" value="no"> <?php esc_html_e( 'Hide the #1, #2 … badges', 'wintracker' ); ?></label>
+						</p>
 					</fieldset>
 
 					<fieldset data-show="wins">
@@ -286,6 +326,7 @@ final class Wintracker_Builder {
 			array( '[wintracker_top_multipliers]', __( 'Highest win ÷ bet; the last 24 hours unless period is set.', 'wintracker' ) ),
 			array( '[wintracker_wins sort="…"]', __( 'Any of the three above: sort = latest, amount or multiplier.', 'wintracker' ) ),
 			array( '[wintracker_stats]', __( 'All-time figures of one casino, provider or game.', 'wintracker' ) ),
+			array( '[wintracker_games]', __( 'Slots grid: every game you have a page for (Wintracker → Links), biggest win first, with tooltips. Attributes: period (all, month, week, day), limit (12), more (12; 0 = no button), rank (yes, no), image (featured, wintracker), currency (eur, original), title, empty.', 'wintracker' ) ),
 			array( '[wintracker_multipliers]', __( 'Chart: share of wins per multiplier range (under 2×, 2–10×, … 500×+), all time, of one casino, provider or game.', 'wintracker' ) ),
 		);
 		$wins = array(

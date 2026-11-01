@@ -39,6 +39,11 @@ function wintracker_multipliers( array $args = array() ) {
 	return Wintracker_Render::multipliers( $args );
 }
 
+/** Slots grid HTML: every game the site has a page for, biggest win first. Same arguments as [wintracker_games]. */
+function wintracker_games( array $args = array() ) {
+	return Wintracker_Render::games_grid( $args );
+}
+
 /**
  * Raw multiplier distribution of a casino/provider (slug or id) or game (id): array( 'total' => wins with a known
  * bet, 'bands' => [ [ 'from' => 1, 'to' => 2, 'wins' => 15328 ], … ], 'meta' => … ), or null.

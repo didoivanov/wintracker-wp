@@ -98,6 +98,57 @@ final class Wintracker_Data {
 		);
 	}
 
+	/**
+	 * Every game the site has a published page for (Wintracker → Links), with its biggest win in the period and its
+	 * last win, biggest first. One cached API call per 100 games (games.php?ids=…&with=wins).
+	 *
+	 * @param string $period day | week | month | all
+	 * @return array<int, array{post: int, game: array<string, mixed>}>|null null when the API gave nothing at all
+	 */
+	public static function linked_games( $period = 'all' ) {
+		$period = in_array( $period, self::PERIODS, true ) ? $period : 'all';
+		$map    = Wintracker_Links::raw_map()['game'] ?? array();
+		if ( ! $map ) {
+			return array();
+		}
+		$ids = array_map( 'intval', array_keys( $map ) );
+		sort( $ids );
+		$games  = array();
+		$failed = 0;
+		foreach ( array_chunk( $ids, 100 ) as $chunk ) {
+			$response = Wintracker_Client::get(
+				'games',
+				array(
+					'ids'    => implode( ',', $chunk ),
+					'with'   => 'wins',
+					'period' => $period,
+				)
+			);
+			if ( null === $response ) {
+				$failed++;
+				continue;
+			}
+			foreach ( $response['data'] as $game ) {
+				if ( isset( $game['id'], $map[ (int) $game['id'] ] ) && ! empty( $game['biggest_win'] ) && isset( $game['biggest_win']['win_eur'] ) ) {
+					$games[] = array(
+						'post' => (int) $map[ (int) $game['id'] ],
+						'game' => $game,
+					);
+				}
+			}
+		}
+		if ( $failed && ! $games ) {
+			return null;
+		}
+		usort(
+			$games,
+			static function ( $a, $b ) {
+				return $b['game']['biggest_win']['win_eur'] <=> $a['game']['biggest_win']['win_eur'];
+			}
+		);
+		return $games;
+	}
+
 	/** Stats field => the wins.php sort that finds the win behind it. */
 	const DETAIL_SORTS = array(
 		'biggest_win'    => 'amount',
