@@ -1,7 +1,8 @@
 <?php
 /**
  * [wintracker_wins], its presets [wintracker_latest_wins], [wintracker_biggest_wins],
- * [wintracker_top_multipliers], and [wintracker_stats]. Attributes: see README.md.
+ * [wintracker_top_multipliers], [wintracker_stats] and [wintracker_multipliers] (multiplier distribution chart).
+ * Attributes: see README.md.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -9,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 final class Wintracker_Shortcodes {
 
 	/** Shortcode => preset sort (null: stats). */
-	const TAGS = array( 'wintracker_wins', 'wintracker_latest_wins', 'wintracker_biggest_wins', 'wintracker_top_multipliers', 'wintracker_stats' );
+	const TAGS = array( 'wintracker_wins', 'wintracker_latest_wins', 'wintracker_biggest_wins', 'wintracker_top_multipliers', 'wintracker_stats', 'wintracker_multipliers' );
 
 	const PRESETS = array(
 		'wintracker_latest_wins'     => 'latest',
@@ -25,6 +26,9 @@ final class Wintracker_Shortcodes {
 
 	public static function render( $atts, $content, $tag ) {
 		$atts = is_array( $atts ) ? $atts : array();
+		if ( 'wintracker_multipliers' === $tag ) {
+			return Wintracker_Render::multipliers( shortcode_atts( Wintracker_Render::multipliers_defaults(), $atts, $tag ) );
+		}
 		if ( 'wintracker_stats' === $tag ) {
 			return Wintracker_Render::stats( shortcode_atts( Wintracker_Render::stats_defaults(), $atts, $tag ) );
 		}

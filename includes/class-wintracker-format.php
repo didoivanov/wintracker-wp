@@ -72,6 +72,18 @@ final class Wintracker_Format {
 		return '';
 	}
 
+	/** A share of a total the way the multiplier chart shows it: "53%", "2.3%", "<0.1%", "0%". */
+	public static function share( $n, $total ) {
+		if ( $total <= 0 || $n <= 0 ) {
+			return esc_html( number_format_i18n( 0 ) . '%' );
+		}
+		$p = $n / $total * 100;
+		if ( $p < 0.1 ) {
+			return esc_html( '<' . number_format_i18n( 0.1, 1 ) . '%' );
+		}
+		return esc_html( number_format_i18n( $p, $p < 10 ? 1 : 0 ) . '%' );
+	}
+
 	/** One stats field of a casino, provider or game row. */
 	public static function stat( array $row, $field ) {
 		switch ( $field ) {

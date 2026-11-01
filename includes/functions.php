@@ -34,6 +34,19 @@ function wintracker_stats( array $args = array() ) {
 	return Wintracker_Render::stats( $args );
 }
 
+/** Multiplier distribution chart HTML. Same arguments as [wintracker_multipliers], e.g. array( 'game' => 717 ). */
+function wintracker_multipliers( array $args = array() ) {
+	return Wintracker_Render::multipliers( $args );
+}
+
+/**
+ * Raw multiplier distribution of a casino/provider (slug or id) or game (id): array( 'total' => wins with a known
+ * bet, 'bands' => [ [ 'from' => 1, 'to' => 2, 'wins' => 15328 ], … ], 'meta' => … ), or null.
+ */
+function wintracker_get_multipliers( $type, $id ) {
+	return Wintracker_Data::multipliers( (string) $type, (string) $id );
+}
+
 /**
  * Raw wins for custom output: array( 'wins' => [...], 'meta' => [...] ), or null when unavailable.
  * Arguments: casino, provider, game, sort, period, limit.

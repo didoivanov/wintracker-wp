@@ -253,3 +253,100 @@
 	visibility: visible;
 }
 .wintracker--details-tooltip .wintracker__fact .wintracker__detail { left: auto; right: 0; }
+
+/* Multiplier distribution ([wintracker_multipliers]) */
+.wintracker {
+	--wt-bar: #8b7cf6;
+	--wt-bar-hot: #f0b429;
+}
+.wintracker__sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+.wintracker__mult-plot {
+	display: grid;
+	grid-template-columns: repeat(var(--wt-cols, 6), minmax(0, 1fr));
+	gap: 10px;
+	height: 180px;
+	margin: 28px 0 0;
+	padding: 0;
+	border-bottom: 1px solid var(--wt-border);
+	list-style: none;
+}
+.wintracker__mult-col {
+	position: relative;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	height: 100%;
+	margin: 0;
+}
+.wintracker__mult-col .wintracker__mult-bar {
+	position: relative;
+	display: block;
+	width: 100%;
+	max-width: 96px;
+	height: var(--wt-h, 0%);
+	min-height: 3px;
+	border-radius: 6px 6px 0 0;
+	background: var(--wt-bar);
+}
+.wintracker__mult-col.is-hot .wintracker__mult-bar,
+.wintracker__mult-row.is-hot .wintracker__mult-bar { background: var(--wt-bar-hot); }
+.wintracker__mult-col .wintracker__mult-share {
+	position: absolute;
+	bottom: calc(100% + 4px);
+	left: 50%;
+	transform: translateX(-50%);
+	font-size: .85em;
+	font-weight: 700;
+	white-space: nowrap;
+}
+.wintracker__mult-labels {
+	display: grid;
+	grid-template-columns: repeat(var(--wt-cols, 6), minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 6px;
+	color: var(--wt-muted);
+	font-size: .8em;
+	line-height: 1.2;
+	text-align: center;
+}
+.wintracker__mult-note {
+	margin: 14px 0 0;
+	color: var(--wt-muted);
+	font-size: .85em;
+	line-height: 1.5;
+}
+.wintracker__mult-note strong { color: var(--wt-bar-hot); }
+.wintracker__mult-rows { margin: 0; padding: 0; list-style: none; }
+.wintracker__mult-row {
+	display: grid;
+	grid-template-columns: 6.5em minmax(0, 1fr) 3.5em;
+	gap: 10px;
+	align-items: center;
+	margin: 0;
+	padding: 4px 0;
+	font-size: .9em;
+}
+.wintracker__mult-label { color: var(--wt-muted); white-space: nowrap; }
+.wintracker__mult-track { display: block; height: 12px; border-radius: 6px; background: var(--wt-surface); }
+.wintracker__mult-row .wintracker__mult-bar {
+	display: block;
+	width: var(--wt-h, 0%);
+	min-width: 3px;
+	height: 100%;
+	border-radius: 6px;
+	background: var(--wt-bar);
+}
+.wintracker__mult-row .wintracker__mult-share { font-weight: 700; text-align: right; }
+@media (max-width: 600px) {
+	.wintracker__mult-plot,
+	.wintracker__mult-labels { gap: 4px; }
+	.wintracker__mult-col .wintracker__mult-share { font-size: .72em; }
+	.wintracker__mult-labels { font-size: .7em; }
+}

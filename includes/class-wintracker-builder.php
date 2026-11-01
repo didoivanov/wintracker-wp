@@ -105,6 +105,7 @@ final class Wintracker_Builder {
 							'biggest'     => array( __( 'Biggest wins', 'wintracker' ), __( 'Top wins by EUR value', 'wintracker' ) ),
 							'multipliers' => array( __( 'Top multipliers', 'wintracker' ), __( 'Highest win ÷ bet', 'wintracker' ) ),
 							'stats'       => array( __( 'Stats card', 'wintracker' ), __( 'All-time figures of a casino, provider or game', 'wintracker' ) ),
+							'distribution' => array( __( 'Multiplier chart', 'wintracker' ), __( 'Share of wins per multiplier range, all time', 'wintracker' ) ),
 						);
 						foreach ( $widgets as $value => $label ) :
 							?>
@@ -115,7 +116,7 @@ final class Wintracker_Builder {
 						<?php endforeach; ?>
 					</fieldset>
 
-					<fieldset data-show="stats">
+					<fieldset data-show="stats distribution">
 						<legend><?php esc_html_e( 'Stats for', 'wintracker' ); ?></legend>
 						<label><input type="radio" name="stats_type" value="casino" checked> <?php esc_html_e( 'Casino', 'wintracker' ); ?></label>
 						<label><input type="radio" name="stats_type" value="provider"> <?php esc_html_e( 'Provider', 'wintracker' ); ?></label>
@@ -189,6 +190,16 @@ final class Wintracker_Builder {
 								<option value="list"><?php esc_html_e( 'Compact list (sidebars)', 'wintracker' ); ?></option>
 								<option value="cards"><?php esc_html_e( 'Cards with game images', 'wintracker' ); ?></option>
 							</select>
+						</p>
+						<p class="wtb-field" data-show="distribution">
+							<label for="wtb-dist-layout"><?php esc_html_e( 'Layout', 'wintracker' ); ?></label>
+							<select id="wtb-dist-layout" name="dist_layout">
+								<option value="columns"><?php esc_html_e( 'Columns (like wintracker.io)', 'wintracker' ); ?></option>
+								<option value="rows"><?php esc_html_e( 'Rows (sidebars, narrow spaces)', 'wintracker' ); ?></option>
+							</select>
+						</p>
+						<p class="wtb-field" data-show="distribution">
+							<label><input type="checkbox" name="dist_note" value="no"> <?php esc_html_e( 'Hide the explanation under the chart', 'wintracker' ); ?></label>
 						</p>
 						<p class="wtb-field" data-show="stats">
 							<label for="wtb-stats-layout"><?php esc_html_e( 'Layout', 'wintracker' ); ?></label>
@@ -275,6 +286,7 @@ final class Wintracker_Builder {
 			array( '[wintracker_top_multipliers]', __( 'Highest win ÷ bet; the last 24 hours unless period is set.', 'wintracker' ) ),
 			array( '[wintracker_wins sort="…"]', __( 'Any of the three above: sort = latest, amount or multiplier.', 'wintracker' ) ),
 			array( '[wintracker_stats]', __( 'All-time figures of one casino, provider or game.', 'wintracker' ) ),
+			array( '[wintracker_multipliers]', __( 'Chart: share of wins per multiplier range (under 2×, 2–10×, … 500×+), all time, of one casino, provider or game.', 'wintracker' ) ),
 		);
 		$wins = array(
 			array( 'casino', __( 'Casino slug, e.g. bizzo (see the Casino list above).', 'wintracker' ), __( 'all casinos', 'wintracker' ) ),
@@ -320,6 +332,20 @@ final class Wintracker_Builder {
 		<?php $table( $wins, array( __( 'Attribute', 'wintracker' ), __( 'Values', 'wintracker' ), __( 'Default', 'wintracker' ) ) ); ?>
 		<h3><?php esc_html_e( 'Stats attributes', 'wintracker' ); ?></h3>
 		<?php $table( $stats, array( __( 'Attribute', 'wintracker' ), __( 'Values', 'wintracker' ), __( 'Default', 'wintracker' ) ) ); ?>
+		<h3><?php esc_html_e( 'Multiplier chart attributes', 'wintracker' ); ?></h3>
+		<?php
+		$table(
+			array(
+				array( 'casino / provider / game', __( 'What the chart is for: casino or provider slug, or game id. Use one.', 'wintracker' ), '' ),
+				array( 'layout', 'columns, rows', 'columns' ),
+				array( 'groups', __( 'Where the bars split, any of 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000', 'wintracker' ), '2,10,50,100,500' ),
+				array( 'highlight', __( 'Bars from this multiplier up are highlighted and summed in the note', 'wintracker' ), '100' ),
+				array( 'note', 'yes, no', 'yes' ),
+				array( 'title, heading, class, empty', __( 'As for wins.', 'wintracker' ), '' ),
+			),
+			array( __( 'Attribute', 'wintracker' ), __( 'Values', 'wintracker' ), __( 'Default', 'wintracker' ) )
+		);
+		?>
 		<h3><?php esc_html_e( 'Good to know', 'wintracker' ); ?></h3>
 		<ul class="wtb-notes">
 			<li><?php esc_html_e( 'Data refreshes every minute. While the Wintracker API is down, widgets show their last good data; if they have none, they show nothing.', 'wintracker' ); ?></li>

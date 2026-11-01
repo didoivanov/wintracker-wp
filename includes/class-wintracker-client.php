@@ -17,7 +17,10 @@ defined( 'ABSPATH' ) || exit;
 final class Wintracker_Client {
 
 	const BASE_URL  = 'https://wintracker.io/api/v1/';
-	const ENDPOINTS = array( 'wins', 'casinos', 'providers', 'games' );
+	const ENDPOINTS = array( 'wins', 'casinos', 'providers', 'games', 'multipliers' );
+
+	/** Seconds a fresh response is kept, per endpoint (all-time figures change slowly). */
+	const TTL = array( 'multipliers' => 600 );
 	const PREFIX    = 'wintracker_';
 
 	/** @var array{code: string, message: string}|null the last error, for an HTML comment shown to editors */
@@ -92,7 +95,7 @@ final class Wintracker_Client {
 				'data' => $body['data'],
 				'meta' => isset( $body['meta'] ) && is_array( $body['meta'] ) ? $body['meta'] : array(),
 			);
-			set_transient( self::PREFIX . 'f_' . $key, $body, self::ttl() );
+			set_transient( self::PREFIX . 'f_' . $key, $body, self::ttl( $endpoint ) );
 			set_transient( self::PREFIX . 's_' . $key, $body, (int) apply_filters( 'wintracker_snapshot_ttl', WEEK_IN_SECONDS ) );
 			return $body;
 		}
@@ -102,7 +105,7 @@ final class Wintracker_Client {
 
 		// The request itself is wrong (bad slug, game id, parameter): cache the error, don't fall back.
 		if ( in_array( $status, array( 400, 404 ), true ) ) {
-			set_transient( self::PREFIX . 'f_' . $key, array( 'error' => compact( 'code', 'message' ) ), self::ttl() );
+			set_transient( self::PREFIX . 'f_' . $key, array( 'error' => compact( 'code', 'message' ) ), self::ttl() ); // errors: one minute
 			return self::fail( $code, $message );
 		}
 
@@ -202,8 +205,9 @@ final class Wintracker_Client {
 	}
 
 	/** Seconds a response is considered fresh: 60 minimum, as the API refreshes once a minute. */
-	private static function ttl() {
-		return max( MINUTE_IN_SECONDS, (int) apply_filters( 'wintracker_cache_ttl', MINUTE_IN_SECONDS ) );
+	private static function ttl( $endpoint = '' ) {
+		$default = self::TTL[ $endpoint ] ?? MINUTE_IN_SECONDS;
+		return max( MINUTE_IN_SECONDS, (int) apply_filters( 'wintracker_cache_ttl', $default, $endpoint ) );
 	}
 
 	private static function outage( $code, $message, $snapshot, $retry_after = 0 ) {

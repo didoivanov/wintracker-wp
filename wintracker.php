@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       Wintracker
- * Description:       Shows live casino wins and stats from the Wintracker API (latest wins, biggest wins, top multipliers, stats cards) via shortcodes and PHP functions.
- * Version:           1.8.0
+ * Description:       Shows live casino wins and stats from the Wintracker API (latest wins, biggest wins, top multipliers, stats cards, multiplier charts) via shortcodes and PHP functions.
+ * Version:           1.9.0
  * Requires at least: 5.5
  * Requires PHP:      7.4
  * Author:            Wintracker
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WINTRACKER_VERSION', '1.8.0' );
+define( 'WINTRACKER_VERSION', '1.9.0' );
 define( 'WINTRACKER_FILE', __FILE__ );
 define( 'WINTRACKER_DIR', plugin_dir_path( __FILE__ ) );
 

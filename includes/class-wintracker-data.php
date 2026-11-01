@@ -66,6 +66,38 @@ final class Wintracker_Data {
 		return null;
 	}
 
+	/**
+	 * All-time wins per multiplier band of one casino, provider or game (API multipliers.php).
+	 *
+	 * @return array{total: int, bands: array<int, array{from: int|null, to: int|null, wins: int}>, meta: array<string, mixed>}|null
+	 */
+	public static function multipliers( $type, $id ) {
+		if ( ! in_array( $type, self::TYPES, true ) ) {
+			return null;
+		}
+		$id = 'game' === $type ? self::game_id( $id ) : self::slug( $id );
+		if ( '' === $id ) {
+			return null;
+		}
+		$response = Wintracker_Client::get( 'multipliers', array( $type => $id ) );
+		if ( null === $response || empty( $response['data']['bands'] ) || ! is_array( $response['data']['bands'] ) ) {
+			return null;
+		}
+		$bands = array();
+		foreach ( $response['data']['bands'] as $band ) {
+			$bands[] = array(
+				'from' => isset( $band['from'] ) ? (float) $band['from'] : null,
+				'to'   => isset( $band['to'] ) ? (float) $band['to'] : null,
+				'wins' => (int) ( $band['wins'] ?? 0 ),
+			);
+		}
+		return array(
+			'total' => array_sum( array_column( $bands, 'wins' ) ),
+			'bands' => $bands,
+			'meta'  => $response['meta'],
+		);
+	}
+
 	/** Stats field => the wins.php sort that finds the win behind it. */
 	const DETAIL_SORTS = array(
 		'biggest_win'    => 'amount',

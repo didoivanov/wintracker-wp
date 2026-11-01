@@ -53,6 +53,7 @@ shortcode or the PHP call. The same page has a reference of every shortcode and 
 | `[wintracker_top_multipliers]` | highest win ÷ bet (last 24 h unless `period` is set)        |
 | `[wintracker_wins sort="…"]`   | any of the above, `sort` = `latest`, `amount` or `multiplier`         |
 | `[wintracker_stats]`           | all-time stats of one casino, provider or game              |
+| `[wintracker_multipliers]`     | chart: share of wins per multiplier range, all time, of one casino, provider or game |
 
 ### Wins attributes
 
@@ -96,6 +97,24 @@ Win details read, for example: biggest win "Gates of Olympus · Pragmatic Play �
 "€530.00 on a €0.50 bet · Gates of Olympus · Pragmatic Play · 2 weeks ago", last win "€12.40 · 31× · Book of Dead".
 What the card is about is left out (no game name on a game card) and the casino is added on provider and game cards.
 They cost up to three more cached API calls per card (`wins.php`, `limit=1`).
+
+### Multiplier chart attributes
+
+`[wintracker_multipliers game="717"]` draws the "Multiplier distribution" chart of wintracker.io: the share of all
+wins with a known bet per multiplier range (under 2×, 2–10×, 10–50×, 50–100×, 100–500×, 500×+), the ranges from
+100× up highlighted, and a note underneath. Plain HTML and CSS, no chart library. Needs the API endpoint
+`multipliers.php` (Wintracker, November 2026); without it the chart shows nothing.
+
+| Attribute                      | Values                                                          | Default |
+|--------------------------------|-----------------------------------------------------------------|---------|
+| `casino` / `provider` / `game` | slug or id (game: id), one of them                              |         |
+| `layout`                       | `columns` (vertical bars), `rows` (horizontal, for narrow spaces) | `columns` |
+| `groups`                       | where the bars split, any of 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000 | `2,10,50,100,500` |
+| `highlight`                    | bars from this multiplier up are highlighted and summed in the note | `100` |
+| `note`                         | `yes`, `no`                                                     | `yes`   |
+| `title`, `heading`, `class`, `empty` | as for wins                                               |         |
+
+Colours: `--wt-bar` and `--wt-bar-hot` (custom properties). The figures are cached for 10 minutes.
 
 ### Examples
 
@@ -141,6 +160,7 @@ Raw data for custom markup (cached the same way, `null` when unavailable):
 ```php
 $data  = wintracker_get_wins( array( 'casino' => 'bizzo', 'sort' => 'amount', 'period' => 'week' ) ); // ['wins' => [...], 'meta' => [...]]
 $stats = wintracker_get_stats( 'game', 685 ); // wins, total_won_eur, biggest_win_eur, top_multiplier, last_win_at, rtp, …
+$bands = wintracker_get_multipliers( 'game', 717 ); // total, bands: [ from, to, wins ] × 11
 ```
 
 Templates that call these functions get the stylesheet in the footer. To load it in `<head>` instead:
@@ -178,7 +198,14 @@ endif;
 ```
 
 The same works on casino and provider pages with `wintracker_linked_id( 'casino' )` / `( 'provider' )` and the
-`casino` / `provider` argument, and with `wintracker_stats()`.
+`casino` / `provider` argument, and with `wintracker_stats()` and `wintracker_multipliers()`:
+
+```php
+$wt_chart = wintracker_multipliers( array( 'game' => $wt_game_id, 'empty' => '' ) );
+if ( ! wintracker_is_empty( $wt_chart ) ) {
+	echo '<section class="slot-multipliers"><h2>' . esc_html__( 'Multiplier distribution', 'your-theme' ) . '</h2>' . $wt_chart . '</section>';
+}
+```
 
 ## Finding slugs and ids
 

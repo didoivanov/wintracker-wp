@@ -15,13 +15,17 @@
 		biggest: 'wintracker_biggest_wins',
 		multipliers: 'wintracker_top_multipliers',
 		stats: 'wintracker_stats',
+		distribution: 'wintracker_multipliers',
 	};
 	var FUNCS = {
 		latest: 'wintracker_latest_wins',
 		biggest: 'wintracker_biggest_wins',
 		multipliers: 'wintracker_top_multipliers',
 		stats: 'wintracker_stats',
+		distribution: 'wintracker_multipliers',
 	};
+	/** Widgets about one casino, provider or game (pick one), rather than a filtered list of wins. */
+	var SINGLE = { stats: true, distribution: true };
 	var previewTimer = null;
 	var previewRequest = 0;
 
@@ -57,7 +61,14 @@
 			}
 		};
 
-		if ( widget === 'stats' ) {
+		if ( widget === 'distribution' ) {
+			var dtype = value( 'stats_type' );
+			add( dtype, value( dtype ) );
+			if ( value( 'dist_layout' ) !== 'columns' ) {
+				add( 'layout', value( 'dist_layout' ) );
+			}
+			add( 'note', value( 'dist_note' ) );
+		} else if ( widget === 'stats' ) {
 			var type = value( 'stats_type' );
 			add( type, value( type ) );
 			if ( value( 'stats_layout' ) !== 'grid' ) {
@@ -122,10 +133,11 @@
 	/** Shows the fields that apply to the chosen widget. */
 	function toggle() {
 		var widget = value( 'widget' );
-		var isStats = widget === 'stats';
+		var isStats = !! SINGLE[ widget ];
+		var mode = isStats ? widget : 'wins';
 		var type = value( 'stats_type' );
 		form.querySelectorAll( '[data-show]' ).forEach( function ( el ) {
-			el.hidden = el.getAttribute( 'data-show' ) !== ( isStats ? 'stats' : 'wins' );
+			el.hidden = el.getAttribute( 'data-show' ).split( ' ' ).indexOf( mode ) === -1;
 		} );
 		[ 'casino', 'provider', 'game' ].forEach( function ( f ) {
 			form.querySelector( '[data-for="' + f + '"]' ).hidden = isStats && type !== f;
@@ -149,7 +161,7 @@
 
 	function preview( widget, atts ) {
 		var box = $( 'wtb-preview' );
-		if ( widget === 'stats' && ! value( value( 'stats_type' ) ) ) {
+		if ( SINGLE[ widget ] && ! value( value( 'stats_type' ) ) ) {
 			box.innerHTML = '<p class="wtb-preview-empty"></p>';
 			box.firstChild.textContent = value( 'stats_type' ) === 'game' ? cfg.i18n.pickGame : cfg.i18n.pickOne;
 			return;

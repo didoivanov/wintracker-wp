@@ -54,6 +54,114 @@ final class Wintracker_Render {
 		);
 	}
 
+	public static function multipliers_defaults() {
+		return array(
+			'type'      => '',
+			'id'        => '',
+			'casino'    => '',
+			'provider'  => '',
+			'game'      => '',
+			'layout'    => 'columns',     // columns (vertical bars) | rows (horizontal bars, for narrow spaces)
+			'groups'    => '2,10,50,100,500', // where the bars split; any of 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000
+			'highlight' => 100,           // bars from this multiplier up are highlighted and summed in the note
+			'note'      => 'yes',         // the line under the chart: yes | no
+			'title'     => '',
+			'heading'   => 'h3',
+			'empty'     => __( 'No multipliers recorded yet.', 'wintracker' ), // "" hides the widget
+			'class'     => '',
+		);
+	}
+
+	/** Band edges the API counts by (WinStats::MULTIPLIER_BANDS on the Wintracker side). */
+	const MULTIPLIER_EDGES = array( 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000 );
+
+	/** @param array<string, mixed> $args see multipliers_defaults() */
+	public static function multipliers( array $args ) {
+		$args = array_merge( self::multipliers_defaults(), array_change_key_case( $args, CASE_LOWER ) );
+		$type = $args['type'];
+		$id   = $args['id'];
+		foreach ( Wintracker_Data::TYPES as $t ) {
+			if ( '' === (string) $type && '' !== (string) $args[ $t ] ) {
+				$type = $t;
+				$id   = $args[ $t ];
+			}
+		}
+		if ( ! in_array( $type, Wintracker_Data::TYPES, true ) ) {
+			return self::comment( __( 'Wintracker multipliers: set casino="…", provider="…" or game="…".', 'wintracker' ) );
+		}
+		$data = Wintracker_Data::multipliers( $type, $id );
+		if ( null === $data ) {
+			return self::unavailable();
+		}
+		if ( 0 === $data['total'] && '' === (string) $args['empty'] ) {
+			return '';
+		}
+
+		// Group the bands into bars at the requested edges.
+		$edges = array_values( array_intersect( self::MULTIPLIER_EDGES, array_map( 'floatval', preg_split( '/[\s,]+/', (string) $args['groups'], -1, PREG_SPLIT_NO_EMPTY ) ) ) );
+		$edges = $edges ? $edges : array( 2, 10, 50, 100, 500 );
+		$hot   = (float) $args['highlight'];
+		$bars  = array();
+		$from  = null;
+		foreach ( array_merge( $edges, array( null ) ) as $to ) {
+			$wins = 0;
+			foreach ( $data['bands'] as $band ) {
+				$lo = null === $band['from'] ? 0.0 : $band['from'];
+				if ( ( null === $from || $lo >= $from ) && ( null === $to || ( null !== $band['to'] && $band['to'] <= $to ) ) ) {
+					$wins += $band['wins'];
+				}
+			}
+			$bars[] = array(
+				'label' => self::multiplier_label( $from, $to ),
+				'wins'  => $wins,
+				'hot'   => null !== $from && $from >= $hot,
+			);
+			$from = $to;
+		}
+		$max     = max( 1, max( array_column( $bars, 'wins' ) ) );
+		$hot_sum = array_sum( array_column( array_filter( $bars, static function ( $b ) { return $b['hot']; } ), 'wins' ) );
+		foreach ( $bars as &$bar ) {
+			$bar['share']  = Wintracker_Format::share( $bar['wins'], $data['total'] );
+			$bar['height'] = round( $bar['wins'] / $max * 100, 2 );
+		}
+		unset( $bar );
+		$layout = in_array( $args['layout'], array( 'columns', 'rows' ), true ) ? $args['layout'] : 'columns';
+
+		return self::template(
+			'multipliers-' . $layout,
+			array(
+				'bars'      => $bars,
+				'total'     => $data['total'],
+				'hot_share' => Wintracker_Format::share( $hot_sum, $data['total'] ),
+				'highlight' => $hot,
+				'note'      => ! in_array( strtolower( (string) $args['note'] ), array( 'no', 'false', '0', 'off' ), true ),
+				'empty'     => (string) $args['empty'],
+				'type'      => $type,
+				'meta'      => $data['meta'],
+				'args'      => $args,
+			),
+			array( 'wintracker--multipliers', 'wintracker--' . $layout, 'wintracker--' . $type ),
+			$args
+		);
+	}
+
+	/** "under 2×", "2–10×", "500×+" */
+	private static function multiplier_label( $from, $to ) {
+		$num = static function ( $n ) {
+			return number_format_i18n( $n, floor( $n ) == $n ? 0 : 1 ); // phpcs:ignore Universal.Operators.StrictComparisons
+		};
+		if ( null === $from ) {
+			/* translators: %s: multiplier, e.g. 2 */
+			return sprintf( __( 'under %s×', 'wintracker' ), $num( $to ) );
+		}
+		if ( null === $to ) {
+			/* translators: %s: multiplier, e.g. 500 */
+			return sprintf( __( '%s×+', 'wintracker' ), $num( $from ) );
+		}
+		/* translators: 1: lower multiplier, 2: upper multiplier, e.g. 2–10× */
+		return sprintf( __( '%1$s–%2$s×', 'wintracker' ), $num( $from ), $num( $to ) );
+	}
+
 	/** Columns shown when a widget has no columns attribute, in this order. */
 	const DEFAULT_COLUMNS = array( 'game', 'casino', 'player', 'bet', 'win', 'multiplier', 'time' );
 
