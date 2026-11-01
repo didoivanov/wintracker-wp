@@ -228,6 +228,7 @@
 }
 .wintracker__has-tip:focus { outline: 2px solid var(--wt-accent); outline-offset: 2px; }
 .wintracker--details-tooltip .wintracker__detail {
+	display: none;
 	position: absolute;
 	z-index: 10;
 	left: 0;
@@ -249,6 +250,7 @@
 .wintracker--details-tooltip .wintracker__has-tip:hover .wintracker__detail,
 .wintracker--details-tooltip .wintracker__has-tip:focus .wintracker__detail,
 .wintracker--details-tooltip .wintracker__has-tip:focus-within .wintracker__detail {
+	display: block;
 	opacity: 1;
 	visibility: visible;
 }
@@ -371,7 +373,7 @@
 /* Slots grid ([wintracker_games]) */
 .wintracker__gg {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
 	gap: 18px;
 	margin: 0;
 	padding: 0;
@@ -381,6 +383,7 @@
 	position: relative;
 	display: flex;
 	flex-direction: column;
+	min-width: 0;
 	margin: 0;
 	border: 1px solid var(--wt-border);
 	border-radius: var(--wt-radius);
@@ -421,7 +424,7 @@
 	text-align: center;
 }
 .wintracker__gg-body { display: flex; flex: 1; flex-direction: column; padding: 14px 16px 16px; }
-.wintracker__gg-name { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.25; }
+.wintracker__gg-name { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
 .wintracker__gg-link { color: inherit; text-decoration: none; }
 .wintracker__gg-link::after { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: var(--wt-radius); }
 .wintracker__gg-link:focus-visible { outline: none; }
@@ -474,11 +477,10 @@
 }
 .wintracker__gg-tip {
 	position: absolute;
+	right: 0;
 	bottom: calc(100% + 10px);
-	left: 50%;
+	left: 0;
 	z-index: 5;
-	width: max-content;
-	max-width: 260px;
 	padding: 10px 12px;
 	border-radius: 10px;
 	background: #1d2027;
@@ -490,7 +492,7 @@
 	box-shadow: 0 10px 28px rgba(0, 0, 0, .22);
 	opacity: 0;
 	visibility: hidden;
-	transform: translate(-50%, 4px);
+	transform: translateY(4px);
 	transition: opacity .15s ease, transform .15s ease, visibility .15s;
 	pointer-events: none;
 }
@@ -498,16 +500,15 @@
 	content: "";
 	position: absolute;
 	top: 100%;
-	left: 50%;
+	left: 22px;
 	border: 6px solid transparent;
 	border-top-color: #1d2027;
-	transform: translateX(-50%);
 }
 .wintracker__gg-stat:hover .wintracker__gg-tip,
-.wintracker__gg-stat:focus .wintracker__gg-tip { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
-.wintracker__gg-tip dl { display: grid; grid-template-columns: auto auto; gap: 2px 14px; margin: 0; }
+.wintracker__gg-stat:focus .wintracker__gg-tip { opacity: 1; visibility: visible; transform: translateY(0); }
+.wintracker__gg-tip dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; margin: 0; }
 .wintracker__gg-tip dt { margin: 0; color: #a7adb8; font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; white-space: nowrap; }
-.wintracker__gg-tip dd { margin: 0; color: #fff; font-size: 13px; font-weight: 600; text-align: right; }
+.wintracker__gg-tip dd { margin: 0; color: #fff; font-size: 13px; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 .wintracker__gg-tip .wintracker__tip-win { color: #6ee08f; }
 .wintracker__gg-tip .wintracker__tip-sub { color: #a7adb8; font-weight: 400; }
 .wintracker__gg-tip .wintracker__none { color: #a7adb8; }
@@ -524,7 +525,7 @@
 }
 .wintracker__gg-more-btn:hover { border-color: var(--wt-accent); color: var(--wt-accent); }
 @media (max-width: 600px) {
-	.wintracker__gg { grid-template-columns: 1fr 1fr; gap: 10px; }
+	.wintracker__gg { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 	.wintracker__gg-body { padding: 10px 10px 12px; }
 	.wintracker__gg-name { font-size: 15px; }
 	.wintracker__gg-provider { margin-bottom: 10px; font-size: 12px; }
@@ -532,8 +533,8 @@
 	.wintracker__gg-stat dt { font-size: 10px; }
 	.wintracker__gg-stat > dd { text-align: left; }
 	.wintracker__gg-big > dd strong { font-size: 16px; }
-	.wintracker__gg-tip { left: 0; max-width: 220px; transform: translate(0, 4px); }
-	.wintracker__gg-stat:hover .wintracker__gg-tip,
-	.wintracker__gg-stat:focus .wintracker__gg-tip { transform: translate(0, 0); }
-	.wintracker__gg-tip::after { left: 24px; }
+	.wintracker__gg-tip { padding: 8px 9px; font-size: 12px; }
+	.wintracker__gg-tip dl { gap: 1px 8px; }
+	.wintracker__gg-tip dt { font-size: 11px; }
+	.wintracker__gg-tip dd { font-size: 12px; }
 }
