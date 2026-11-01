@@ -49,6 +49,10 @@ jobs:
         if: steps.exists.outputs.skip != 'true'
         run: php bin/make-pot.php --check
 
+      - name: Check protected stylesheet
+        if: steps.exists.outputs.skip != 'true'
+        run: php bin/build-css.php --check
+
       - name: Build zip
         if: steps.exists.outputs.skip != 'true'
         run: git archive --format=zip --prefix=wintracker-wp/ -o wintracker-wp.zip HEAD

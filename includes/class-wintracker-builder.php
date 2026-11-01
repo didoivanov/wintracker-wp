@@ -37,7 +37,7 @@ final class Wintracker_Builder {
 		if ( 'toplevel_page_' . self::PAGE !== $hook ) {
 			return;
 		}
-		wp_enqueue_style( 'wintracker', plugins_url( 'assets/wintracker.css', WINTRACKER_FILE ), array(), WINTRACKER_VERSION );
+		Wintracker_Assets::enqueue(); // the same stylesheet (and custom CSS) as the site, for a faithful preview
 		wp_enqueue_style( 'wintracker-admin', plugins_url( 'assets/admin.css', WINTRACKER_FILE ), array(), WINTRACKER_VERSION );
 		wp_enqueue_script( 'wintracker-admin', plugins_url( 'assets/admin.js', WINTRACKER_FILE ), array(), WINTRACKER_VERSION, true );
 		wp_localize_script(

@@ -60,7 +60,7 @@ final class Wintracker_Render {
 	/**
 	 * Site-wide display defaults from Wintracker → Settings.
 	 *
-	 * @return array{columns: string[], images: bool}
+	 * @return array{columns: string[], images: bool, isolate: bool, css: string}
 	 */
 	public static function display() {
 		$saved   = get_option( 'wintracker_display', array() );
@@ -69,6 +69,8 @@ final class Wintracker_Render {
 		return array(
 			'columns' => $columns ? $columns : self::DEFAULT_COLUMNS,
 			'images'  => ! isset( $saved['images'] ) || (bool) $saved['images'],
+			'isolate' => ! empty( $saved['isolate'] ),
+			'css'     => isset( $saved['css'] ) ? (string) $saved['css'] : '',
 		);
 	}
 
@@ -192,7 +194,8 @@ final class Wintracker_Render {
 		Wintracker_Assets::enqueue();
 
 		$extra   = array_filter( array_map( 'sanitize_html_class', preg_split( '/\s+/', (string) $args['class'] ) ) );
-		$classes = implode( ' ', array_map( 'sanitize_html_class', array_merge( array( 'wintracker' ), $classes, $extra ) ) );
+		$root    = self::display()['isolate'] ? array( 'wintracker', 'wintracker--isolated' ) : array( 'wintracker' );
+		$classes = implode( ' ', array_map( 'sanitize_html_class', array_merge( $root, $classes, $extra ) ) );
 		$heading = in_array( $args['heading'], array( 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div' ), true ) ? $args['heading'] : 'h3';
 
 		ob_start();

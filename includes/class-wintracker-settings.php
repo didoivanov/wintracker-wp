@@ -125,6 +125,20 @@ final class Wintracker_Settings {
 						<th scope="row"><?php esc_html_e( 'Game images', 'wintracker' ); ?></th>
 						<td><label><input type="checkbox" name="images" value="1" <?php checked( $display['images'] ); ?>> <?php esc_html_e( 'Show game thumbnails', 'wintracker' ); ?></label></td>
 					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Theme styles', 'wintracker' ); ?></th>
+						<td>
+							<label><input type="checkbox" name="isolate" value="1" <?php checked( $display['isolate'] ); ?>> <?php esc_html_e( 'Protect widgets from theme styles', 'wintracker' ); ?></label>
+							<p class="description"><?php esc_html_e( 'Turn on when the theme\'s table, list or link styles make the widgets look wrong (coloured rows, centred cells, odd borders). Everything inside a widget is reset to plain browser styles and then gets the plugin\'s own; the theme\'s font and text colour are kept. Only theme rules marked !important still get through.', 'wintracker' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="wintracker-css"><?php esc_html_e( 'Custom CSS', 'wintracker' ); ?></label></th>
+						<td>
+							<textarea id="wintracker-css" name="css" rows="8" class="large-text code" spellcheck="false" placeholder=".wintracker { --wt-accent: #0a7d3b; }&#10;.wintracker__table th { letter-spacing: 0; }"><?php echo esc_textarea( $display['css'] ); ?></textarea>
+							<p class="description"><?php esc_html_e( 'Your own rules for the widgets, loaded after the plugin\'s stylesheet and only on pages that show a widget. With theme protection on, start selectors with .wintracker.wintracker--isolated (or use !important) so they outweigh the plugin\'s rules. Colours: --wt-accent, --wt-border, --wt-muted, --wt-surface, --wt-radius.', 'wintracker' ); ?></p>
+						</td>
+					</tr>
 				</table>
 				<?php submit_button( __( 'Save display defaults', 'wintracker' ) ); ?>
 			</form>
@@ -314,6 +328,13 @@ final class Wintracker_Settings {
 		return implode( '; ', $parts );
 	}
 
+	/** Plain CSS only: no tags (a "</style>" would end the inline style block), at most 20 KB. */
+	private static function clean_css( $css ) {
+		$css = wp_strip_all_tags( $css );
+		$css = str_ireplace( array( '</style', '<style' ), '', $css );
+		return substr( trim( $css ), 0, 20000 );
+	}
+
 	public static function save_display() {
 		self::guard( 'wintracker_display' );
 		$posted  = isset( $_POST['columns'] ) && is_array( $_POST['columns'] ) ? array_map( 'sanitize_key', wp_unslash( $_POST['columns'] ) ) : array();
@@ -326,6 +347,8 @@ final class Wintracker_Settings {
 			array(
 				'columns' => $columns,
 				'images'  => ! empty( $_POST['images'] ),
+				'isolate' => ! empty( $_POST['isolate'] ),
+				'css'     => self::clean_css( isset( $_POST['css'] ) ? (string) wp_unslash( $_POST['css'] ) : '' ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- clean_css()
 			),
 			true
 		);
