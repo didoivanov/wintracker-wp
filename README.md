@@ -131,12 +131,14 @@ amount, bet, multiplier, casino and time. Needs `games.php?…&with=wins` on the
 | `period`   | biggest win of: `all`, `month`, `week`, `day`                       | `all`   |
 | `limit`    | cards shown at first                                                | `12`    |
 | `more`     | cards each "Show more" adds; `0`: no button, only the first `limit` | `12`    |
+| `max`      | most cards in the page at all (shown + behind "Show more")          | `48`    |
 | `rank`     | `#1`, `#2` … badges: `yes`, `no`                                    | `yes`   |
 | `image`    | `featured` (your page's featured image, else Wintracker's), `wintracker` | `featured` |
 | `currency` | `eur` (comparable across casinos), `original`                       | `eur`   |
 | `title`, `heading`, `class`, `empty` | as for wins (`empty` defaults to showing nothing)     |         |
 
-One API request per 100 linked games, cached 10 minutes; the pages and featured images are loaded in two queries.
+One API request per 100 linked games, cached 10 minutes. The slot pages, their featured images and the linked
+provider pages are loaded in a few queries in total, not per card, and at most `max` cards go into the HTML.
 
 ### Examples
 

@@ -326,7 +326,7 @@ final class Wintracker_Builder {
 			array( '[wintracker_top_multipliers]', __( 'Highest win ÷ bet; the last 24 hours unless period is set.', 'wintracker' ) ),
 			array( '[wintracker_wins sort="…"]', __( 'Any of the three above: sort = latest, amount or multiplier.', 'wintracker' ) ),
 			array( '[wintracker_stats]', __( 'All-time figures of one casino, provider or game.', 'wintracker' ) ),
-			array( '[wintracker_games]', __( 'Slots grid: every game you have a page for (Wintracker → Links), biggest win first, with tooltips. Attributes: period (all, month, week, day), limit (12), more (12; 0 = no button), rank (yes, no), image (featured, wintracker), currency (eur, original), title, empty.', 'wintracker' ) ),
+			array( '[wintracker_games]', __( 'Slots grid: every game you have a page for (Wintracker → Links), biggest win first, with tooltips. Attributes: period (all, month, week, day), limit (12), more (12; 0 = no button), max (48 in the page at most), rank (yes, no), image (featured, wintracker), currency (eur, original), title, empty.', 'wintracker' ) ),
 			array( '[wintracker_multipliers]', __( 'Chart: share of wins per multiplier range (under 2×, 2–10×, … 500×+), all time, of one casino, provider or game.', 'wintracker' ) ),
 		);
 		$wins = array(

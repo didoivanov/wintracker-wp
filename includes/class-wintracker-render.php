@@ -79,6 +79,7 @@ final class Wintracker_Render {
 			'period'   => 'all',      // biggest win of: day | week | month | all
 			'limit'    => 12,         // games shown at first
 			'more'     => 12,         // games each "Show more" adds; 0: no button (only the first `limit`)
+			'max'      => 48,         // most games in the page at all (shown + behind "Show more"), keeps the HTML small
 			'rank'     => 'yes',      // #1, #2 … on the images: yes | no
 			'image'    => 'featured', // featured (the page's featured image, else Wintracker's) | wintracker
 			'currency' => 'eur',      // biggest / last win shown in: eur | original
@@ -106,21 +107,27 @@ final class Wintracker_Render {
 		}
 		$limit = max( 1, (int) $args['limit'] );
 		$more  = max( 0, (int) $args['more'] );
-		if ( ! $more ) {
-			$games = array_slice( $games, 0, $limit );
-		}
+		// Only what can be shown goes into the page: the first `limit`, plus up to `max` behind "Show more".
+		$games = array_slice( $games, 0, $more ? max( $limit, (int) $args['max'] ) : $limit );
 
-		// The pages and their featured images in two queries.
+		// The pages, their featured images and the provider pages in a few queries (not one per card).
 		$post_ids = array_column( $games, 'post' );
+		foreach ( $games as $row ) {
+			if ( ! empty( $row['game']['provider']['id'] ) ) {
+				$post_ids[] = Wintracker_Links::post_id( 'provider', $row['game']['provider']['id'] );
+			}
+		}
+		$post_ids = array_values( array_unique( array_filter( $post_ids ) ) );
 		if ( $post_ids && class_exists( 'WP_Query' ) ) {
 			$query = new WP_Query(
 				array(
 					'post__in'               => $post_ids,
-					'post_type'              => 'any',
+					// The linked types by name: 'any' would skip types excluded from search.
+					'post_type'              => array_values( array_filter( Wintracker_Links::types() ) ),
 					'posts_per_page'         => count( $post_ids ),
 					'no_found_rows'          => true,
 					'ignore_sticky_posts'    => true,
-					'update_post_term_cache' => false,
+					'update_post_meta_cache' => true, // featured image ids
 				)
 			);
 			if ( function_exists( 'update_post_thumbnail_cache' ) ) {
@@ -144,13 +151,13 @@ final class Wintracker_Render {
 					array(
 						'class'   => 'wintracker__gg-img',
 						'alt'     => '',
-						'loading' => 'lazy',
+						'loading' => $i < 4 ? 'eager' : 'lazy', // the first row is usually on screen right away
 						'sizes'   => '(max-width: 600px) 50vw, 280px',
 					)
 				);
 			}
 			if ( '' === $image && ! empty( $game['image_url'] ) ) {
-				$image = '<img class="wintracker__gg-img" src="' . esc_url( $game['image_url'] ) . '" alt="" loading="lazy" decoding="async">';
+				$image = '<img class="wintracker__gg-img" src="' . esc_url( $game['image_url'] ) . '" alt="" loading="' . ( $i < 4 ? 'eager' : 'lazy' ) . '" decoding="async">';
 			}
 			$items[] = array(
 				'rank'     => $i + 1,

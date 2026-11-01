@@ -131,7 +131,7 @@ final class Wintracker_Links {
 			get_posts(
 				array(
 					'post__in'               => $ids,
-					'post_type'              => 'any',
+					'post_type'              => array_values( array_filter( self::types() ) ), // 'any' skips types excluded from search
 					'post_status'            => 'publish',
 					'posts_per_page'         => count( $ids ),
 					'no_found_rows'          => true,
