@@ -212,7 +212,14 @@ workflow refuses to publish when it is out of date.
   through. The file is generated from `assets/wintracker.css` with `php bin/build-css.php` (the release workflow
   checks it is current).
 - **Custom CSS** per site: the textarea under Display defaults, printed after the plugin's stylesheet and only on
-  pages with a widget. With protection on, use `.wintracker.wintracker--isolated …` selectors (or `!important`).
+  pages with a widget. With protection on, wrap your rules so they outweigh the protected styles:
+
+  ```css
+  .wintracker:is(#wt-iso, .wintracker--isolated):is(#wt-iso, .wintracker--isolated) {
+  	--wt-accent: #1e8a3c;
+  	& .wintracker__table th { letter-spacing: 0; }
+  }
+  ```
 - **CSS**: override the custom properties, e.g.
   `body .wintracker { --wt-accent: #0a7d3b; --wt-radius: 4px; }`, or turn the stylesheet off with
   `add_filter( 'wintracker_load_css', '__return_false' );` and style the `.wintracker` classes in the theme.

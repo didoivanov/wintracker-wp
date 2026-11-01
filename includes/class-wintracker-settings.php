@@ -136,7 +136,7 @@ final class Wintracker_Settings {
 						<th scope="row"><label for="wintracker-css"><?php esc_html_e( 'Custom CSS', 'wintracker' ); ?></label></th>
 						<td>
 							<textarea id="wintracker-css" name="css" rows="8" class="large-text code" spellcheck="false" placeholder=".wintracker { --wt-accent: #0a7d3b; }&#10;.wintracker__table th { letter-spacing: 0; }"><?php echo esc_textarea( $display['css'] ); ?></textarea>
-							<p class="description"><?php esc_html_e( 'Your own rules for the widgets, loaded after the plugin\'s stylesheet and only on pages that show a widget. With theme protection on, start selectors with .wintracker.wintracker--isolated (or use !important) so they outweigh the plugin\'s rules. Colours: --wt-accent, --wt-border, --wt-muted, --wt-surface, --wt-radius.', 'wintracker' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Your own rules for the widgets, loaded after the plugin\'s stylesheet and only on pages that show a widget. With theme protection on, put your rules inside .wintracker:is(#wt-iso, .wintracker--isolated):is(#wt-iso, .wintracker--isolated) { … } (CSS nesting, with & .wintracker__table td { … } etc.) or add !important, so they outweigh the protected styles. Colours: --wt-accent, --wt-border, --wt-muted, --wt-surface, --wt-radius.', 'wintracker' ); ?></p>
 						</td>
 					</tr>
 				</table>
