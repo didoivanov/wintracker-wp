@@ -16,6 +16,7 @@ $wpdb->query(
 delete_option( 'wintracker_api_key' );
 delete_option( 'wintracker_cache_gen' );
 delete_option( 'wintracker_display' );
+delete_option( 'wintracker_refresh' );
 delete_option( 'wintracker_link_types' );
 delete_option( 'wintracker_links' );
 delete_option( 'wintracker_links_report' );
@@ -24,4 +25,5 @@ delete_option( 'wintracker_links_schema' );
 delete_post_meta_by_key( '_wintracker_link' );
 wp_clear_scheduled_hook( 'wintracker_links_daily' );
 wp_clear_scheduled_hook( 'wintracker_links_rebuild' );
+function_exists( 'wp_unschedule_hook' ) ? wp_unschedule_hook( 'wintracker_refresh' ) : wp_clear_scheduled_hook( 'wintracker_refresh' );
 delete_site_transient( 'wintracker_update_release' );

@@ -19,6 +19,7 @@ final class Wintracker_Settings {
 		add_action( 'admin_post_wintracker_save', array( __CLASS__, 'save' ) );
 		add_action( 'admin_post_wintracker_test', array( __CLASS__, 'test' ) );
 		add_action( 'admin_post_wintracker_flush', array( __CLASS__, 'flush' ) );
+		add_action( 'admin_post_wintracker_refresh', array( __CLASS__, 'save_refresh' ) );
 		add_action( 'admin_post_wintracker_display', array( __CLASS__, 'save_display' ) );
 		add_action( 'admin_post_wintracker_links', array( __CLASS__, 'save_links' ) );
 		add_action( 'admin_post_wintracker_links_rebuild', array( __CLASS__, 'rebuild_links' ) );
@@ -146,7 +147,26 @@ final class Wintracker_Settings {
 			<?php self::links_section(); ?>
 
 			<h2><?php esc_html_e( 'Connection and cache', 'wintracker' ); ?></h2>
-			<p><?php esc_html_e( 'Responses are cached for 60 seconds. The last good response of each widget is kept for 7 days and shown while the API is down.', 'wintracker' ); ?></p>
+			<p><?php esc_html_e( 'Visitors never wait for the Wintracker API once a widget has data: when its data is older than the refresh time, the page shows the saved copy right away and the plugin fetches the new data after the page has been sent. Only a widget\'s very first view calls the API directly (3 seconds at most). The saved copy is kept for 7 days and also shown while the API is down.', 'wintracker' ); ?></p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="wintracker_refresh">
+				<?php wp_nonce_field( 'wintracker_refresh' ); ?>
+				<p>
+					<label for="wintracker-refresh"><strong><?php esc_html_e( 'Refresh data every', 'wintracker' ); ?></strong></label>
+					<select id="wintracker-refresh" name="refresh">
+						<?php foreach ( array( 1, 5, 15, 30 ) as $wt_m ) : ?>
+							<option value="<?php echo (int) $wt_m; ?>" <?php selected( Wintracker_Client::refresh_minutes(), $wt_m ); ?>>
+								<?php
+								/* translators: %d: number of minutes */
+								echo esc_html( sprintf( _n( '%d minute', '%d minutes', $wt_m, 'wintracker' ), $wt_m ) );
+								?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+					<?php submit_button( __( 'Save', 'wintracker' ), 'secondary', 'submit', false ); ?>
+				</p>
+				<p class="description"><?php esc_html_e( 'Longer means fewer requests to wintracker.io and less work for your server; the multiplier charts and the slots grid refresh every 10 minutes at the most often. Logged-in admins see in the page source (search "Wintracker:" near the end) how many API calls a page made.', 'wintracker' ); ?></p>
+			</form>
 			<p>
 				<?php self::button( 'wintracker_test', __( 'Test connection', 'wintracker' ), '' === $key ); ?>
 				<?php self::button( 'wintracker_flush', __( 'Clear cache', 'wintracker' ) ); ?>
@@ -353,6 +373,13 @@ final class Wintracker_Settings {
 			true
 		);
 		self::done( 'success', __( 'Display defaults saved. Pages with a page cache show them after the cache is cleared.', 'wintracker' ) );
+	}
+
+	public static function save_refresh() {
+		self::guard( 'wintracker_refresh' );
+		$minutes = isset( $_POST['refresh'] ) ? absint( $_POST['refresh'] ) : 5;
+		update_option( 'wintracker_refresh', in_array( $minutes, array( 1, 5, 15, 30 ), true ) ? $minutes : 5, true );
+		self::done( 'success', __( 'Refresh time saved.', 'wintracker' ) );
 	}
 
 	public static function flush() {

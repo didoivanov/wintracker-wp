@@ -25,14 +25,19 @@ Keys are created by the Wintracker admin (`php bin/api-key.php create "casinos.e
 
 - **Server-side only.** Every call is a `wp_remote_get` from WordPress with the key in the `X-Api-Key` header,
   so the key never reaches the browser.
-- **Cache: 60 s.** Each distinct widget configuration is cached in a transient for 60 seconds (the API refreshes
-  at most once a minute). Raise it with the `wintracker_cache_ttl` filter; it never goes below 60.
-- **Snapshots for outages.** The last good response of each widget is also kept as a snapshot (7 days by default,
-  `wintracker_snapshot_ttl` filter). Each snapshot is overwritten on every successful refresh, so the plugin
-  stores only one small entry per widget configuration (at most 100 wins), never a history.
-- **Graceful fallback.** If the API times out, returns 5xx/401/429 or invalid JSON, the widget shows its
-  snapshot and the plugin pauses API calls for a minute (longer when the API sends `Retry-After`, up to 15 min),
-  so an outage does not slow every page view. Without a snapshot the widget renders nothing.
+- **Visitors never wait for the API once a widget has data (stale-while-revalidate).** Each widget configuration's
+  response is fresh for 5 minutes by default (**Wintracker → Settings → Refresh data every**: 1, 5, 15 or 30
+  minutes; the multiplier charts and the slots grid at least 10). When it is older, the page shows the saved copy
+  right away and the plugin fetches the new data after the page has been sent (`fastcgi_finish_request()` /
+  `litespeed_finish_request()`, or a WP-Cron request on hosts without them). Only a widget's very first view, with
+  nothing saved yet, calls the API during the page, with a 3-second timeout (`wintracker_timeout` filter).
+- **Saved copies for outages.** The last good response of each widget is kept for 7 days
+  (`wintracker_snapshot_ttl` filter) and rewritten on every refresh, so the plugin stores only one small entry per
+  widget configuration (at most 100 wins), never a history.
+- **Graceful fallback.** If the API times out, returns 5xx/401/429 or invalid JSON, widgets keep their saved copy and
+  the plugin pauses API calls for a minute (longer when the API sends `Retry-After`, up to 15 min).
+- **Timing note for admins.** Logged-in administrators find at the end of the page source a comment like
+  `<!-- Wintracker: 3 from cache, 1 saved copies (refreshed after the page), 0 live API calls during the page (0.00 s) -->`.
 - **Wrong arguments** (unknown casino slug, game id) render nothing; logged-in editors see the reason in an HTML
   comment (`<!-- Wintracker: casino_not_found: … -->`) in the page source.
 - **Stylesheet only where needed.** `assets/wintracker.css` (about 5 KB, less gzipped) loads only on pages that show a
