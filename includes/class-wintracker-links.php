@@ -201,6 +201,7 @@ final class Wintracker_Links {
 		$map           = array();
 		$ambiguous     = array();
 		$ambiguous_ids = array();
+		$claimed       = array(); // post id => true once an item has it (one page, one item)
 		foreach ( $entities as $entity ) {
 			if ( array_key_exists( (int) $entity['id'], $manual ) ) {
 				continue;
@@ -219,8 +220,14 @@ final class Wintracker_Links {
 					$clash = $clash || count( $ids ) > 1;
 				}
 			}
+			if ( $found && isset( $claimed[ $found ] ) ) {
+				// Another item with the same name already has this page (games come busiest first, so e.g. "Mental 2"
+				// by Nolimit City keeps the page and the "Mental 2" a few casinos list under Evolution doesn't get it too).
+				continue;
+			}
 			if ( $found ) {
 				$map[ (int) $entity['id'] ] = $found;
+				$claimed[ $found ]          = true;
 			} elseif ( $clash ) {
 				$ambiguous[]     = (string) $entity['name'];
 				$ambiguous_ids[] = (int) $entity['id'];

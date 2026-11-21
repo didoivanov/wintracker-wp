@@ -119,9 +119,12 @@ final class Wintracker_Data {
 			$response = Wintracker_Client::get(
 				'games',
 				array(
-					'ids'    => implode( ',', $chunk ),
-					'with'   => 'wins',
-					'period' => $period,
+					'ids'      => implode( ',', $chunk ),
+					'with'     => 'wins',
+					'period'   => $period,
+					// The grid ranks games against each other: a quiet game must not bring a biggest win from a
+					// longer period into "this week" (the API widens empty periods unless fallback=0).
+					'fallback' => 'all' === $period ? null : '0',
 				)
 			);
 			if ( null === $response ) {

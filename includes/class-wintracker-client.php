@@ -36,10 +36,33 @@ final class Wintracker_Client {
 	public static $stats = array(
 		'cached'     => 0,
 		'stale'      => 0,
+		'catchup'    => 0,
 		'live'       => 0,
 		'live_time'  => 0.0,
 		'background' => 0,
 	);
+
+	const QUEUE_OPTION = 'wintracker_queue';      // refreshes waiting for WP-Cron (hosts without finish_request)
+	const BG_OPTION    = 'wintracker_background'; // ['at' => last successful background refresh, 'via' => how]
+
+	/** Seconds a saved copy may be old before a page fetches itself when background refreshes don't run. */
+	public static function max_age() {
+		return (int) apply_filters( 'wintracker_max_age', max( 30 * MINUTE_IN_SECONDS, 3 * self::refresh_minutes() * MINUTE_IN_SECONDS ) );
+	}
+
+	/** Did a background refresh succeed in the last hour? */
+	public static function background_works() {
+		$bg = get_option( self::BG_OPTION, array() );
+		return is_array( $bg ) && ! empty( $bg['at'] ) && time() - (int) $bg['at'] < HOUR_IN_SECONDS;
+	}
+
+	/** How this server runs background refreshes. */
+	public static function background_method() {
+		if ( function_exists( 'fastcgi_finish_request' ) ) {
+			return 'fastcgi_finish_request';
+		}
+		return function_exists( 'litespeed_finish_request' ) ? 'litespeed_finish_request' : 'wp-cron';
+	}
 
 	/**
 	 * Returns the decoded response ({data, meta}) of an endpoint. Never makes a visitor wait for the API when there
@@ -83,6 +106,14 @@ final class Wintracker_Client {
 			return self::fail( 'missing_key', __( 'No API key: add it under Wintracker → Settings (or define WINTRACKER_API_KEY in wp-config.php).', 'wintracker' ), $snapshot );
 		}
 		if ( null !== $snapshot ) {
+			// Background refreshes aren't happening here (e.g. WP-Cron blocked) and the saved copy is old: fetch now,
+			// briefly, rather than show data that only changes when the copy expires after a week.
+			$age = time() - (int) ( $snapshot['fetched'] ?? 0 );
+			if ( $age > self::max_age() && ! self::background_works() && ! get_transient( self::PREFIX . 'paused' ) && ! get_transient( self::PREFIX . 'l_' . $key ) ) {
+				self::$stats['catchup']++;
+				$fresh = self::request( $endpoint, $params, $key, (int) apply_filters( 'wintracker_timeout', 3 ) );
+				return null !== $fresh ? $fresh : $snapshot;
+			}
 			// Show the saved copy now; fetch the new one once the visitor has the page.
 			self::$stats['stale']++;
 			self::enqueue( $key, $endpoint, $params );
@@ -128,19 +159,39 @@ final class Wintracker_Client {
 			litespeed_finish_request();
 		}
 		ignore_user_abort( true );
-		self::refresh_all( self::$queue );
+		self::refresh_all( self::$queue, self::background_method() );
 		self::$queue = array();
 	}
 
 	/** Without fastcgi/litespeed_finish_request: hand the queue to a WP-Cron event (a separate request). */
 	public static function defer_queue() {
-		if ( self::$queue ) {
-			wp_schedule_single_event( time(), 'wintracker_refresh', array( array_values( self::$queue ) ) );
-			if ( function_exists( 'spawn_cron' ) ) {
-				spawn_cron();
-			}
-			self::$queue = array();
+		if ( ! self::$queue ) {
+			return;
 		}
+		// One list and one event, however many pages queue refreshes (not one event each).
+		$waiting = get_option( self::QUEUE_OPTION, array() );
+		$waiting = array_slice( array_merge( is_array( $waiting ) ? $waiting : array(), self::$queue ), -50, null, true );
+		update_option( self::QUEUE_OPTION, $waiting, false );
+		self::$queue = array();
+		if ( ! wp_next_scheduled( 'wintracker_refresh' ) ) {
+			wp_schedule_single_event( time(), 'wintracker_refresh' );
+		}
+		if ( function_exists( 'spawn_cron' ) ) {
+			spawn_cron();
+		}
+	}
+
+	/**
+	 * The wintracker_refresh WP-Cron event: refreshes the waiting list. (Events from 1.11.0 carried their items as
+	 * an argument; those are refreshed too.)
+	 *
+	 * @param mixed $items legacy argument
+	 */
+	public static function cron_refresh( $items = null ) {
+		$waiting = get_option( self::QUEUE_OPTION, array() );
+		delete_option( self::QUEUE_OPTION );
+		$all = array_merge( is_array( $waiting ) ? array_values( $waiting ) : array(), is_array( $items ) ? array_values( $items ) : array() );
+		self::refresh_all( array_slice( $all, 0, 20 ), 'wp-cron' );
 	}
 
 	/**
@@ -148,17 +199,33 @@ final class Wintracker_Client {
 	 *
 	 * @param array<int|string, array{0: string, 1: array<string, mixed>}> $items
 	 */
-	public static function refresh_all( $items ) {
+	public static function refresh_all( $items, $via = 'background' ) {
 		$deadline = microtime( true ) + 20;
-		foreach ( array_slice( (array) $items, 0, 10 ) as $item ) {
+		$ok       = 0;
+		foreach ( array_slice( (array) $items, 0, 20 ) as $item ) {
 			if ( microtime( true ) > $deadline || get_transient( self::PREFIX . 'paused' ) ) {
 				break;
 			}
-			list( $endpoint, $params ) = $item;
+			if ( ! is_array( $item ) || count( $item ) < 2 ) {
+				continue;
+			}
+			list( $endpoint, $params ) = array_values( $item );
 			if ( in_array( $endpoint, self::ENDPOINTS, true ) && is_array( $params ) ) {
 				self::$stats['background']++;
-				self::request( $endpoint, $params, self::key( $endpoint, $params ), 10 );
+				$ok += null !== self::request( $endpoint, $params, self::key( $endpoint, $params ), 10 ) && ! self::$last_error ? 1 : 0;
 			}
+		}
+		// Remember that background refreshes work (written at most every 5 minutes).
+		$bg = get_option( self::BG_OPTION, array() );
+		if ( $ok && ( ! is_array( $bg ) || empty( $bg['at'] ) || time() - (int) $bg['at'] > 5 * MINUTE_IN_SECONDS || ( $bg['via'] ?? '' ) !== $via ) ) {
+			update_option(
+				self::BG_OPTION,
+				array(
+					'at'  => time(),
+					'via' => $via,
+				),
+				false
+			);
 		}
 	}
 
@@ -195,9 +262,11 @@ final class Wintracker_Client {
 
 		if ( 200 === $status && is_array( $body ) && isset( $body['data'] ) && is_array( $body['data'] ) ) {
 			$body = array(
-				'data' => $body['data'],
-				'meta' => isset( $body['meta'] ) && is_array( $body['meta'] ) ? $body['meta'] : array(),
+				'data'    => $body['data'],
+				'meta'    => isset( $body['meta'] ) && is_array( $body['meta'] ) ? $body['meta'] : array(),
+				'fetched' => time(),
 			);
+			self::$last_error = null;
 			set_transient( self::PREFIX . 'f_' . $key, $body, self::ttl( $endpoint ) );
 			set_transient( self::PREFIX . 's_' . $key, $body, (int) apply_filters( 'wintracker_snapshot_ttl', WEEK_IN_SECONDS ) );
 			return $body;
@@ -230,12 +299,16 @@ final class Wintracker_Client {
 		if ( ! ( $s['cached'] + $s['stale'] + $s['live'] ) || ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+		$bg = get_option( self::BG_OPTION, array() );
 		printf(
-			"\n<!-- Wintracker: %d from cache, %d saved copies (refreshed after the page), %d live API calls during the page (%.2f s) -->\n",
+			"\n<!-- Wintracker: %d from cache, %d saved copies (refreshed after the page), %d live API calls during the page (%.2f s)%s; background refresh via %s, last OK %s -->\n",
 			(int) $s['cached'],
 			(int) $s['stale'],
 			(int) $s['live'],
-			(float) $s['live_time']
+			(float) $s['live_time'],
+			! empty( $s['catchup'] ) ? sprintf( ', %d of them catching up old saved copies', (int) $s['catchup'] ) : '',
+			esc_html( self::background_method() ),
+			! empty( $bg['at'] ) ? esc_html( human_time_diff( (int) $bg['at'], time() ) . ' ago' ) : 'never'
 		);
 	}
 

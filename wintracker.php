@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Wintracker
  * Description:       Shows live casino wins and stats from the Wintracker API (latest wins, biggest wins, top multipliers, stats cards, multiplier charts, slots grid) via shortcodes and PHP functions.
- * Version:           1.11.0
+ * Version:           1.12.0
  * Requires at least: 5.5
  * Requires PHP:      7.4
  * Author:            Wintracker
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WINTRACKER_VERSION', '1.11.0' );
+define( 'WINTRACKER_VERSION', '1.12.0' );
 define( 'WINTRACKER_FILE', __FILE__ );
 define( 'WINTRACKER_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -45,7 +45,19 @@ add_action(
 
 Wintracker_Assets::init();
 Wintracker_Shortcodes::init();
-add_action( 'wintracker_refresh', array( 'Wintracker_Client', 'refresh_all' ) ); // background refreshes without fastcgi_finish_request
+add_action( 'wintracker_refresh', array( 'Wintracker_Client', 'cron_refresh' ) ); // background refreshes without fastcgi_finish_request
+// After an update: drop the one-event-per-widget refreshes 1.11.0 scheduled (they could pile up when WP-Cron is blocked).
+add_action(
+	'admin_init',
+	static function () {
+		if ( get_option( 'wintracker_version' ) !== WINTRACKER_VERSION ) {
+			if ( function_exists( 'wp_unschedule_hook' ) ) {
+				wp_unschedule_hook( 'wintracker_refresh' );
+			}
+			update_option( 'wintracker_version', WINTRACKER_VERSION );
+		}
+	}
+);
 add_action( 'wp_footer', array( 'Wintracker_Client', 'timing_note' ), 999 );
 Wintracker_Updater::init();
 Wintracker_Links::init();

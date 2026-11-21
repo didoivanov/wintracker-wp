@@ -167,6 +167,7 @@ final class Wintracker_Settings {
 				</p>
 				<p class="description"><?php esc_html_e( 'Longer means fewer requests to wintracker.io and less work for your server; the multiplier charts and the slots grid refresh every 10 minutes at the most often. Logged-in admins see in the page source (search "Wintracker:" near the end) how many API calls a page made.', 'wintracker' ); ?></p>
 			</form>
+			<?php self::background_status(); ?>
 			<p>
 				<?php self::button( 'wintracker_test', __( 'Test connection', 'wintracker' ), '' === $key ); ?>
 				<?php self::button( 'wintracker_flush', __( 'Clear cache', 'wintracker' ) ); ?>
@@ -373,6 +374,68 @@ final class Wintracker_Settings {
 			true
 		);
 		self::done( 'success', __( 'Display defaults saved. Pages with a page cache show them after the cache is cleared.', 'wintracker' ) );
+	}
+
+	/** How background refreshes run on this server, and whether they do. */
+	private static function background_status() {
+		$method  = Wintracker_Client::background_method();
+		$bg      = get_option( Wintracker_Client::BG_OPTION, array() );
+		$last    = is_array( $bg ) && ! empty( $bg['at'] ) ? (int) $bg['at'] : 0;
+		$waiting = get_option( Wintracker_Client::QUEUE_OPTION, array() );
+		$due     = wp_next_scheduled( 'wintracker_refresh' );
+		$stuck   = 'wp-cron' === $method && ( ( $due && $due < time() - 10 * MINUTE_IN_SECONDS ) || ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON && ! $last ) );
+		$ok      = $last && time() - $last < HOUR_IN_SECONDS;
+		?>
+		<table class="widefat striped" style="max-width:760px;margin:8px 0 16px">
+			<tbody>
+				<tr>
+					<th scope="row" style="width:220px"><?php esc_html_e( 'Background refresh runs', 'wintracker' ); ?></th>
+					<td>
+						<?php
+						echo 'wp-cron' === $method
+							? esc_html__( 'in a WP-Cron request (this server can\'t finish a page early)', 'wintracker' )
+							/* translators: %s: PHP function name */
+							: esc_html( sprintf( __( 'right after each page (%s)', 'wintracker' ), $method ) );
+						?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Last successful background refresh', 'wintracker' ); ?></th>
+					<td>
+						<?php
+						if ( $last ) {
+							/* translators: %s: time ago, e.g. "5 mins" */
+							echo '<span style="color:' . ( $ok ? '#00692b' : '#b32d2e' ) . '">' . esc_html( sprintf( __( '%s ago', 'wintracker' ), human_time_diff( $last, time() ) ) ) . '</span>';
+						} else {
+							echo '<span style="color:#b32d2e">' . esc_html__( 'never (yet)', 'wintracker' ) . '</span>';
+						}
+						?>
+					</td>
+				</tr>
+				<?php if ( 'wp-cron' === $method ) : ?>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Waiting for WP-Cron', 'wintracker' ); ?></th>
+						<td><?php echo esc_html( number_format_i18n( is_array( $waiting ) ? count( $waiting ) : 0 ) ); ?></td>
+					</tr>
+				<?php endif; ?>
+			</tbody>
+		</table>
+		<?php if ( ! $ok ) : ?>
+			<div class="notice notice-warning inline" style="max-width:760px">
+				<p><strong><?php esc_html_e( 'Background refreshes are not running.', 'wintracker' ); ?></strong>
+					<?php esc_html_e( 'Until they do, a page whose saved data is older than 30 minutes fetches fresh data while it loads (3 seconds at most), so the data stays current but some pages load slower.', 'wintracker' ); ?></p>
+				<?php if ( 'wp-cron' === $method || $stuck ) : ?>
+					<p><?php esc_html_e( 'This server runs them through WP-Cron, a request WordPress makes to its own address (/wp-cron.php). Behind Cloudflare that request is often blocked by bot protection. Fix one of these:', 'wintracker' ); ?></p>
+					<ol>
+						<li><?php esc_html_e( 'Cloudflare → Security → WAF → Custom rules: if URI Path equals /wp-cron.php, then Skip (all bot protection and managed rules).', 'wintracker' ); ?></li>
+						<li><?php esc_html_e( 'Or a server cron job every 5 minutes that runs WordPress cron directly, e.g. php /path/to/wordpress/wp-cron.php, with define( \'DISABLE_WP_CRON\', true ); in wp-config.php.', 'wintracker' ); ?></li>
+					</ol>
+				<?php else : ?>
+					<p><?php esc_html_e( 'Pages may simply not have been visited since the update. If this stays red after the site has had visitors for an hour, the API calls after the page are failing: use Test connection below.', 'wintracker' ); ?></p>
+				<?php endif; ?>
+			</div>
+		<?php endif; ?>
+		<?php
 	}
 
 	public static function save_refresh() {

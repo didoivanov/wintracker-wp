@@ -31,6 +31,11 @@ Keys are created by the Wintracker admin (`php bin/api-key.php create "casinos.e
   right away and the plugin fetches the new data after the page has been sent (`fastcgi_finish_request()` /
   `litespeed_finish_request()`, or a WP-Cron request on hosts without them). Only a widget's very first view, with
   nothing saved yet, calls the API during the page, with a 3-second timeout (`wintracker_timeout` filter).
+- **When background refreshes can't run** (e.g. WP-Cron blocked by Cloudflare's bot protection on a host without
+  `fastcgi_finish_request`), a page whose saved copy is older than 30 minutes fetches fresh data itself (3 s at
+  most), so data never freezes. **Wintracker → Settings** shows how background refreshes run, when the last one
+  succeeded, and how to unblock WP-Cron (Cloudflare WAF rule *URI Path equals `/wp-cron.php` → Skip*, or a server
+  cron job). Refreshes waiting for WP-Cron share one list and one event.
 - **Saved copies for outages.** The last good response of each widget is kept for 7 days
   (`wintracker_snapshot_ttl` filter) and rewritten on every refresh, so the plugin stores only one small entry per
   widget configuration (at most 100 wins), never a history.
@@ -133,7 +138,7 @@ amount, bet, multiplier, casino and time. Needs `games.php?…&with=wins` on the
 
 | Attribute  | Values                                                              | Default |
 |------------|---------------------------------------------------------------------|---------|
-| `period`   | biggest win of: `all`, `month`, `week`, `day`                       | `all`   |
+| `period`   | biggest win of: `all`, `month`, `week`, `day` (only games with a win in that period) | `all`   |
 | `limit`    | cards shown at first                                                | `12`    |
 | `more`     | cards each "Show more" adds; `0`: no button, only the first `limit` | `12`    |
 | `max`      | most cards in the page at all (shown + behind "Show more")          | `48`    |
